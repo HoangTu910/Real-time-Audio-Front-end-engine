@@ -55,22 +55,25 @@ int main(int argc, char *argv[])
     fe_config_t cfg;
     memset(&cfg, 0, sizeof(cfg));
 
-    cfg.sample_rate      = 16000;
-    cfg.frame_len        = 256;     /* 16 ms @ 16 kHz              */
-    cfg.hop_len          = 128;     /* 8 ms  (50% overlap)         */
-    cfg.num_mics         = 2;       /* stereo input                */
-    cfg.flags            = FE_FLAG_NOISE_SUPPRESS
-                         | FE_FLAG_AGC
-                         | FE_FLAG_FEATURES;
+    cfg.sample_rate        = 16000;
+    cfg.frame_len          = 256;     /* 16 ms @ 16 kHz              */
+    cfg.hop_len            = 128;     /* 8 ms  (50% overlap)         */
+    cfg.num_channels       = 2;       /* stereo input                */
+    cfg.flags              = FE_FLAG_NOISE_SUPPRESS
+                           | FE_FLAG_AGC
+                           | FE_FLAG_FEATURES;
+    /* Alpha coeffs config */
+    cfg.dc_rm_alpha        = 32414; /* Q1.31 format */
+    cfg.pre_emphasis_alpha = 1234;  /* Q1.15 format */
 
     /* Noise suppression tuning */
-    cfg.ns_over_subtract = 512;     /* ~1.0  in Q6.9               */
-    cfg.ns_floor         = 26;      /* ~0.05 in Q6.9               */
+    cfg.ns_over_subtract   = 512;     /* ~1.0  in Q6.9               */
+    cfg.ns_floor           = 26;      /* ~0.05 in Q6.9               */
 
     /* AGC tuning */
-    cfg.agc_target_level = 16384;   /* ~0.5  in Q1.15              */
-    cfg.agc_attack_ms    = 10;
-    cfg.agc_release_ms   = 100;
+    cfg.agc_target_level   = 16384;   /* ~0.5  in Q1.15              */
+    cfg.agc_attack_ms      = 10;
+    cfg.agc_release_ms     = 100;
 
     /* ── 3. Allocate state + scratch (no malloc at runtime) ─────────────── */
 
@@ -104,8 +107,8 @@ int main(int argc, char *argv[])
     /* ── 5. Process loop — one hop at a time ────────────────────────────── */
 
     const size_t hop          = cfg.hop_len;
-    const size_t num_mics     = cfg.num_mics;
-    const size_t in_samples   = hop * num_mics;   /* interleaved stereo  */
+    const size_t num_channels = cfg.num_channels;
+    const size_t in_samples   = hop * num_channels;   /* interleaved stereo  */
     const size_t out_samples  = hop;               /* mono output         */
 
     int16_t *pcm_in  = (int16_t *)malloc(in_samples  * sizeof(int16_t));

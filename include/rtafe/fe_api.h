@@ -17,6 +17,18 @@
 extern "C" {
 #endif
 
+typedef struct {
+    uint16_t frame_len;
+    uint8_t num_channels;
+
+    DCRemoval *dc_block; /** array size = num channels */
+    PreEmphasis *pre_emphasis_block;
+    /** More block... */
+
+    int32_t *scratch; /** scratch buffer: FFT temp, intermediate */
+    size_t scratch_bytes;
+} fe_state_t;
+
 /* ── Query helpers ──────────────────────────────────────────────────────── */
 
 /**

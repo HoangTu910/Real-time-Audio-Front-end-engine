@@ -5,6 +5,8 @@
 #pragma once
 
 #include "fe_types.h"
+#include "dc_removal.h"
+#include "preemphasis.h"
 
 /* ── Feature-enable flags (bitfield for fe_config_t.flags) ──────────────── */
 #define FE_FLAG_NOISE_SUPPRESS  (1U << 0)  /**< Enable spectral noise suppression */
@@ -23,8 +25,12 @@ typedef struct {
     uint32_t sample_rate;       /**< Sampling rate in Hz (16000 or 48000)     */
     uint16_t frame_len;         /**< FFT frame length in samples (e.g. 256)  */
     uint16_t hop_len;           /**< Hop / stride in samples (e.g. 128)      */
-    uint8_t  num_mics;          /**< Number of microphone channels (1 or 2)  */
+    uint8_t  num_channels;          /**< Number of microphone channels (1 or 2)  */
     uint8_t  flags;             /**< OR'd FE_FLAG_* bitmask                  */
+
+    /* Dc removal alpha */
+    q31_t dc_rm_alpha;
+    q15_t pre_emphasis_alpha;
 
     /* Noise suppression tuning */
     q15_t    ns_over_subtract;  /**< Over-subtraction factor Q6.9            */
