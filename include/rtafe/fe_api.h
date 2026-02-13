@@ -17,7 +17,7 @@
 extern "C" {
 #endif
 
-typedef struct {
+typedef struct fe_state_t {
     uint16_t frame_len;
     uint8_t num_channels;
 

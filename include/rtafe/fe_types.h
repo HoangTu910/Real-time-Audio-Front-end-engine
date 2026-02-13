@@ -17,6 +17,9 @@
 #define Q1_31_SHIFT 31
 #define Q1_15_SHIFT 15
 
+#define RTAFE_LOG(...) \
+do { printf(__VA_ARGS__); printf("\n"); } while(0)
+
 /* ── Fixed-point type aliases ───────────────────────────────────────────── */
 typedef int16_t  q15_t;    /**< Q1.15  range: −1 … +0.999969         */
 typedef int32_t  q31_t;    /**< Q1.31  accumulator / extended state   */

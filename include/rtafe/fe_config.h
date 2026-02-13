@@ -7,6 +7,9 @@
 #include "fe_types.h"
 #include "dc_removal.h"
 #include "preemphasis.h"
+#include "window.h"
+#include "noise_suppress.h"
+#include "fft.h"
 
 /* ── Feature-enable flags (bitfield for fe_config_t.flags) ──────────────── */
 #define FE_FLAG_NOISE_SUPPRESS  (1U << 0)  /**< Enable spectral noise suppression */
@@ -42,5 +45,4 @@ typedef struct {
     uint16_t agc_release_ms;    /**< Release time constant (ms)              */
 } fe_config_t;
 
-/* ── Opaque state handle (defined internally in src/) ───────────────────── */
-typedef struct fe_state_t fe_state_t;
+/* ── State handle (defined in fe_api.h) ─────────────────────────────────── */
