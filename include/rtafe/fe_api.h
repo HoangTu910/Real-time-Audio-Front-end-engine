@@ -17,19 +17,23 @@
 extern "C" {
 #endif
 
+typedef noise_suppress_state_t NoiseSuppress;
+
 typedef struct fe_state_t {
     uint16_t frame_len;
     uint8_t num_channels;
+    uint8_t flags;              /** feature flags: noise suppress, AGC, etc */
 
     DCRemoval *dc_block; /** array size = num channels */
     PreEmphasis *pre_emphasis_block;
+    NoiseSuppress *noise_suppress_block; /** array size = num channels */
     /** More block... */
 
-    int32_t *scratch; /** scratch buffer: FFT temp, intermediate */
+    q31_t *noise_est;   /** running noise estimate [n_bins] per channel */
+    int32_t *scratch;   /** scratch buffer: FFT temp, intermediate */
     size_t scratch_bytes;
 } fe_state_t;
 
-/* ── Query helpers ──────────────────────────────────────────────────────── */
 
 /**
  * Return the size (in bytes) required for fe_state_t given @p cfg.

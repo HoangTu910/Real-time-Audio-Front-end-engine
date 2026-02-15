@@ -1,9 +1,22 @@
 #include "fe_api.h"
 #include "pipeline/window.h"
 #include "pipeline/fft.h"
+#include "pipeline/noise_suppress.h"
 #include "math/tables.h"
 
 /* fe_api.c — Top-level pipeline orchestration */
+
+/* Helper to compute magnitude spectrum from complex FFT output */
+static inline q31_t magnitude_q31(q31_t re, q31_t im)
+{
+    /* Simplified: |X| ≈ max(|re|, |im|) + 0.5*min(|re|, |im|)
+       More accurate approximations available but this is efficient */
+    q31_t a = re < 0 ? -re : re;
+    q31_t b = im < 0 ? -im : im;
+    q31_t max_val = a > b ? a : b;
+    q31_t min_val = a > b ? b : a;
+    return max_val + (min_val >> 1);
+}
 
 fe_status_t fe_process_hop(fe_state_t *state, const q15_t *pcm_in, q15_t *pcm_out, void *feature_out, size_t feature_sz)
 {
@@ -12,17 +25,26 @@ fe_status_t fe_process_hop(fe_state_t *state, const q15_t *pcm_in, q15_t *pcm_ou
 
     /*
      * Scratch layout (all carved from state->scratch):
-     *   frame_q15 [frame_len]       — Q1.15 frame buffer per channel
-     *   fft_re    [frame_len]       — Q1.31 real part for FFT
-     *   fft_im    [frame_len]       — Q1.31 imaginary part for FFT
+     *   frame_q15 [frame_len]           — Q1.15 frame buffer per channel
+     *   fft_re    [frame_len]           — Q1.31 real part for FFT
+     *   fft_im    [frame_len]           — Q1.31 imaginary part for FFT
+     *   gain_spec [frame_len/2 + 1]    — Q6.9 spectral gain (noise suppression)
      */
     q15_t *frame_q15 = (q15_t *)state->scratch;
     q31_t *fft_re    = (q31_t *)(frame_q15 + frame_len);
     q31_t *fft_im    = fft_re + frame_len;
+    /* Note: gain_spec carved from remaining scratch or reuse fft_im after processing */
+    
+    size_t n_bins = frame_len / 2 + 1;
 
     for (uint8_t ch = 0; ch < num_channels; ch++) {
-        DCRemoval   *dc  = &state->dc_block[ch];
-        PreEmphasis *pre = &state->pre_emphasis_block[ch];
+        DCRemoval           *dc  = &state->dc_block[ch];
+        PreEmphasis         *pre = &state->pre_emphasis_block[ch];
+        NoiseSuppress       *ns  = NULL;
+        if (state->flags & FE_FLAG_NOISE_SUPPRESS) {
+            RTAFE_LOG("Noise suppression enabled for channel %d\n", ch);
+            ns = &state->noise_suppress_block[ch];
+        }
 
         /* ── Stage 1 & 2: DC removal + pre-emphasis (per sample) ───────── */
         for (uint16_t n = 0; n < frame_len; n++) {
@@ -54,12 +76,34 @@ fe_status_t fe_process_hop(fe_state_t *state, const q15_t *pcm_in, q15_t *pcm_ou
                                          twiddle_cos_256, twiddle_sin_256);
         (void)fft_shifts; /* TODO: pass to downstream stages for scaling */
 
-        /* ── Stage 5: Spectral processing (TODO) ──────────────────────── */
-        /* - Compute magnitude per bin
-         * - Noise estimation & spectral subtraction / Wiener gain
-         * - Gain smoothing
-         * - Apply gain to fft_re/fft_im
-         */
+        /* ── Stage 5: Spectral processing (Noise Suppression) ────────── */
+        if (state->flags & FE_FLAG_NOISE_SUPPRESS) {
+            /* Allocate gain buffer (reuse fft_im after FFT processing) */
+            q15_t *gain_out = (q15_t *)fft_im; /* n_bins elements, Q6.9 */
+
+            /* Call adaptive noise suppression with minimum tracking */
+            noise_suppress_process(
+                ns,
+                fft_re, fft_im,
+                &state->noise_est[ch * n_bins], /* noise estimate per channel */
+                gain_out,
+                n_bins,
+                (state->flags & FE_FLAG_NOISE_SUPPRESS) ? /* use config defaults */
+                ((q15_t)512) : 0,      /* over_subtract (1.0x = 512 in Q6.9) */
+                ((q15_t)1),            /* floor (minimal threshold) */
+                20                     /* min_track_len: 20 frames ≈ 200ms */
+            );
+
+            /* Apply spectral gain to each bin: X[k] *= Gain[k] */
+            for (size_t k = 0; k < n_bins; k++) {
+                q15_t gain = gain_out[k];  /* Q6.9 */
+
+                /* Multiply complex bin by gain: keep magnitude, preserve phase */
+                /* X_out[k] = X_in[k] * (gain / 512) where 512 ≡ unity in Q6.9 */
+                fft_re[k] = (q31_t)((fft_re[k] * gain) >> 9);
+                fft_im[k] = (q31_t)((fft_im[k] * gain) >> 9);
+            }
+        }
 
         /* ── Stage 6: iFFT + overlap-add (TODO) ──────────────────────── */
         /* - ifft_radix2_q31(fft_re, fft_im, ...)
