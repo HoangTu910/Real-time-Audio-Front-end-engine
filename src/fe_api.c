@@ -103,6 +103,7 @@ fe_status_t fe_process_hop(fe_state_t *state, const q15_t *pcm_in, q15_t *pcm_ou
                 fft_re[k] = (q31_t)((fft_re[k] * gain) >> 9);
                 fft_im[k] = (q31_t)((fft_im[k] * gain) >> 9);
             }
+            /* Happy new year - wish this year I can achieve more goals, gain more experience and get promotion with better salary!*/
         }
 
         /* ── Stage 6: iFFT + overlap-add (TODO) ──────────────────────── */
