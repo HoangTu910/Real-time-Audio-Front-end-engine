@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "fe_api.h"
 #include "pipeline/window.h"
 #include "pipeline/fft.h"
@@ -25,15 +26,25 @@ fe_status_t fe_process_hop(fe_state_t *state, const q15_t *pcm_in, q15_t *pcm_ou
 
     /*
      * Scratch layout (all carved from state->scratch):
-     *   frame_q15 [frame_len]           — Q1.15 frame buffer per channel
+     *   frame_q15 [frame_len]           — Q1.15 frame buffer
      *   fft_re    [frame_len]           — Q1.31 real part for FFT
      *   fft_im    [frame_len]           — Q1.31 imaginary part for FFT
-     *   gain_spec [frame_len/2 + 1]    — Q6.9 spectral gain (noise suppression)
+     *   noise_est [n_bins * channels]   — Q1.31 noise estimates (reused fft_im after noise supp)
      */
-    q15_t *frame_q15 = (q15_t *)state->scratch;
-    q31_t *fft_re    = (q31_t *)(frame_q15 + frame_len);
-    q31_t *fft_im    = fft_re + frame_len;
-    /* Note: gain_spec carved from remaining scratch or reuse fft_im after processing */
+    uint8_t *scratch_ptr = (uint8_t *)state->scratch;
+    q15_t *frame_q15 = (q15_t *)scratch_ptr;
+    scratch_ptr += frame_len * sizeof(q15_t);
+    
+    q31_t *fft_re = (q31_t *)scratch_ptr;
+    scratch_ptr += frame_len * sizeof(q31_t);
+    
+    q31_t *fft_im = (q31_t *)scratch_ptr;
+    scratch_ptr += frame_len * sizeof(q31_t);
+    
+    q31_t *noise_est_scratch = NULL;
+    if (state->flags & FE_FLAG_NOISE_SUPPRESS) {
+        noise_est_scratch = (q31_t *)scratch_ptr;
+    }
     
     size_t n_bins = frame_len / 2 + 1;
 

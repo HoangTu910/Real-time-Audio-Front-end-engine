@@ -34,11 +34,16 @@
 
 fe_status_t noise_suppress_init(noise_suppress_state_t *state, size_t n_bins)
 {
+    RTAFE_LOG("Initializing Noise Suppressor with n_bins=%zu\n", n_bins);
     if (state == NULL) return FE_ERR_NULL_PTR;
 
-    /* Allocate minimum tracking buffer (one per bin) */
-    state->power_min = (q31_t *)malloc(n_bins * sizeof(q31_t));
-    if (state->power_min == NULL) return FE_ERR_NULL_PTR;
+    /* If power_min is already allocated (pre-allocated from scratch), 
+       just initialize it. Otherwise allocate it. */
+    if (state->power_min == NULL) {
+        /* Allocate minimum tracking buffer (one per bin) */
+        state->power_min = (q31_t *)malloc(n_bins * sizeof(q31_t));
+        if (state->power_min == NULL) return FE_ERR_NULL_PTR;
+    }
 
     /* Initialize with maximum values (will be overwritten on first frames) */
     for (size_t i = 0; i < n_bins; i++) {
@@ -62,7 +67,7 @@ void noise_suppress_process(noise_suppress_state_t *state,
                             uint16_t     min_track_len)
 {
     if (state == NULL || fft_re == NULL || fft_im == NULL) return;
-
+    
     state->total_power = 0;
     q31_t max_power = 0;
 

@@ -3,6 +3,7 @@
 
 void pre_emphasis_init(PreEmphasis *filt, q15_t alpha_q15)
 {
+    RTAFE_LOG("Initializing PreEmphasis filter with alpha_q15=0x%04X\n", (uint16_t)alpha_q15);
     filt->x_prev = 0;
     filt->alpha_q15 = alpha_q15;
 }

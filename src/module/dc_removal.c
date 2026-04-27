@@ -3,6 +3,7 @@
 
 void dc_removal_init(DCRemoval *filt, q31_t alpha_q31)
 {
+    RTAFE_LOG("Initializing DCRemoval filter with alpha_q31=0x%08X\n", (uint32_t)alpha_q31);
     filt->x_prev = 0;
     filt->y_prev = 0;
     filt->alpha_q31 = alpha_q31;

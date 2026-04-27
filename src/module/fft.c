@@ -42,6 +42,7 @@ static inline size_t bit_reverse(size_t x, int bits)
 int fft_radix2_q31(q31_t *re, q31_t *im, size_t n,
                    const q31_t *tw_cos, const q31_t *tw_sin)
 {
+    RTAFE_LOG("Starting radix-2 FFT on %zu points\n", n);
     const int stages = log2_int(n);
     int total_shifts = 0;
 
