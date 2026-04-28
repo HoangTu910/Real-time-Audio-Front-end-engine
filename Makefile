@@ -8,7 +8,7 @@ CC = gcc
 
 INC_DIRS = -Iinclude -I$(SRC_DIR) -I$(UTILS_DIR) -I$(BIQUAD_DIR)
 LDLIBS = -lm
-CFLAGS = -Wall -O3 -DFIXED_POINT $(INC_DIRS)
+CFLAGS = -Wall -O2 -DFIXED_POINT $(INC_DIRS)
 
 SRCS = src/main.c
 
