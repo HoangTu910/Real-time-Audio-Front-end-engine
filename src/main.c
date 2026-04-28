@@ -7,13 +7,35 @@
 #include "biquad.h"
 #define NUM_SAMPLES 1000000
 
+#ifdef ARM_TARGET
+#define DWT_CYCCNT   (*(volatile uint32_t*)0xE0001004)
+#define DWT_CONTROL  (*(volatile uint32_t*)0xE0001000)
+#define SCB_DEMCR    (*(volatile uint32_t*)0xE000EDFC)
+#define TRCENA       (1 << 24)
+
+static inline void dwt_init(void)
+{
+    SCB_DEMCR |= TRCENA;
+    DWT_CYCCNT = 0;
+    DWT_CONTROL |= 1;
+}
+#endif
+
 uint64_t get_time_ns() {
+#ifndef ARM_TARGET
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
+#else
+    return (uint64_t)DWT_CYCCNT;
+#endif
 }
 
 int main() {
+    #ifdef ARM_TARGET
+        dwt_init();
+    #endif
+
     biquad my_filter;
     memset(&my_filter.state, 0, sizeof(biquad_state));
     biquad_lpf(&my_filter, 1000.0f, 0.707f);
@@ -39,7 +61,11 @@ int main() {
     uint64_t end = get_time_ns();
     uint64_t total_ns = end - start;
 
+    #ifdef ARM_TARGET
+    volatile uint64_t result = total_ns;
+    #else
     printf("Time: %llu ns\n", total_ns);
+    #endif
 
     return 0;
 }
