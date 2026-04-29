@@ -56,29 +56,40 @@ $(TARGET_ARM): $(OBJS_ARM)
 # TESTING (tests/ directory)
 # =========================
 
-TEST_DIR = tests
-TEST_SINCOS = $(TEST_DIR)/test_sincos
-TEST_SRCS = $(TEST_DIR)/test_sincos.c
+TEST_DIR  = tests
+BIN_DIR   = bin
+TEST_SRCS = $(wildcard $(TEST_DIR)/*.c)
+TEST_BINS = $(patsubst $(TEST_DIR)/%.c, $(BIN_DIR)/%, $(TEST_SRCS))
 
-# Compile and run sincos test
-test: $(TEST_SINCOS)
+$(BIN_DIR):
+	@mkdir -p $(BIN_DIR)
+
+
+$(BIN_DIR)/%: $(TEST_DIR)/%.c | $(BIN_DIR)
+	@echo "Compiling $<..."
+	@$(CC) $(CFLAGS) $< -o $@ $(LDLIBS)
+
+test_sincos: $(BIN_DIR)/test_sincos
 	@echo "Running test_sincos..."
-	@./$(TEST_SINCOS)
+	@./$(BIN_DIR)/test_sincos
 
-$(TEST_SINCOS): $(TEST_SRCS)
-	@echo "Compiling test_sincos..."
-	$(CC) $(TEST_SRCS) -o $(TEST_SINCOS) $(LDLIBS) -DFIXED_POINT
+test_dc: $(BIN_DIR)/test_dc_remov
+	@echo "Running test_dc_remov..."
+	@./$(BIN_DIR)/test_dc_remov
 
-# Run all tests in tests/ directory
-test-all: test
+test-all: $(TEST_BINS)
+	@echo "Running all tests..."
+	@for bin in $(TEST_BINS); do \
+		echo "---------------------------"; \
+		echo "Executing $$bin..."; \
+		./$$bin; \
+	done
+	@echo "---------------------------"
 
-# Clean test artifacts
 clean-test:
-	rm -f $(TEST_SINCOS)
-
-# =========================
-# Cleanup
-# =========================
+	@echo "Cleaning test artifacts..."
+	@rm -rf $(BIN_DIR)
+	
 clean: clean-test
 	rm -f $(OBJS) $(OBJS_ARM) $(TARGET) $(TARGET_ARM).elf
 

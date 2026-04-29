@@ -44,7 +44,7 @@ static inline s16 biquad_df2t_fixed(biquad_coeffs_fixed *c, s16 x, s64 *d1, s64 
 {
     s64 acc = (s64)c->b0 * x + *d1;
 
-    s16 out = (s16)(acc + 0x4000) >> 14;
+    s16 out = (s16)(acc + 0x2000) >> 14;
 
     *d1 = (s64)c->b1 * x - (s64)c->a1 * out + *d2;
     *d2 = (s64)c->b2 * x - (s64)c->a2 * out;
