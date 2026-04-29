@@ -53,7 +53,33 @@ $(TARGET_ARM): $(OBJS_ARM)
 	$(CC_ARM) $(CFLAGS_ARM) -c $< -o $@
 
 # =========================
-clean:
+# TESTING (tests/ directory)
+# =========================
+
+TEST_DIR = tests
+TEST_SINCOS = $(TEST_DIR)/test_sincos
+TEST_SRCS = $(TEST_DIR)/test_sincos.c
+
+# Compile and run sincos test
+test: $(TEST_SINCOS)
+	@echo "Running test_sincos..."
+	@./$(TEST_SINCOS)
+
+$(TEST_SINCOS): $(TEST_SRCS)
+	@echo "Compiling test_sincos..."
+	$(CC) $(TEST_SRCS) -o $(TEST_SINCOS) $(LDLIBS) -DFIXED_POINT
+
+# Run all tests in tests/ directory
+test-all: test
+
+# Clean test artifacts
+clean-test:
+	rm -f $(TEST_SINCOS)
+
+# =========================
+# Cleanup
+# =========================
+clean: clean-test
 	rm -f $(OBJS) $(OBJS_ARM) $(TARGET) $(TARGET_ARM).elf
 
-.PHONY: all arm clean
+.PHONY: all arm test test-all clean-test clean
