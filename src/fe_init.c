@@ -1,154 +1,172 @@
-/**
- * @file fe_init.c
- * @brief Lifecycle helpers: state/scratch sizing, reset, free, version.
- *
- * fe_init() and fe_process_hop() live in fe_api.c.
- */
+#include "fe_init.h"
 
-#include <stdio.h>
-#include "fe_api.h"
-#include "pipeline/noise_suppress.h"
-#include "pipeline/dc_removal.h"
-#include "pipeline/preemphasis.h"
-
-/* ── Version ────────────────────────────────────────────────────────────── */
-
-uint32_t fe_version(void)
+void _wav_to_buffer(const char *filename, fe_manager_t *mng, fe_audio_info_t *info)
 {
-    return ((uint32_t)FE_VERSION_MAJOR << 16) |
-           ((uint32_t)FE_VERSION_MINOR << 8)  |
-           ((uint32_t)FE_VERSION_PATCH);
-}
-
-/* ── Query helpers ──────────────────────────────────────────────────────── */
-
-size_t fe_state_bytes(const fe_config_t *cfg)
-{
-    if (!cfg) return 0;
-
-    /* State structure + all per-channel processing blocks */
-    size_t state_sz = sizeof(fe_state_t);
-    size_t dc_sz = cfg->num_channels * sizeof(DCRemoval);
-    size_t pre_emp_sz = cfg->num_channels * sizeof(PreEmphasis);
-    size_t ns_sz = 0;
-    size_t ns_power_min_sz = 0;
-    
-    if (cfg->flags & FE_FLAG_NOISE_SUPPRESS) {
-        size_t n_bins = cfg->frame_len / 2 + 1;
-        ns_sz = cfg->num_channels * sizeof(noise_suppress_state_t);
-        ns_power_min_sz = cfg->num_channels * n_bins * sizeof(q31_t);
-    }
-    
-    return state_sz + dc_sz + pre_emp_sz + ns_sz + ns_power_min_sz;
-}
-
-size_t fe_scratch_bytes(const fe_config_t *cfg)
-{
-    if (!cfg) return 0;
-
-    const size_t n = cfg->frame_len;
-    const size_t n_bins = n / 2 + 1;
-
-    /* Scratch layout (temporary buffers for FFT processing):
-     *   frame_q15            [n]                      — Q1.15 frame buffer
-     *   fft_re               [n]                      — Q1.31 FFT real
-     *   fft_im               [n]                      — Q1.31 FFT imag (reused for gain)
-     *   noise_est            [n_bins * channels]      — Q1.31 noise estimate per bin per channel (if enabled)
-     */
-    size_t frame_sz = n * sizeof(q15_t);
-    size_t fft_sz = 2 * n * sizeof(q31_t);  /* fft_re + fft_im */
-    size_t noise_est_sz = 0;
-    
-    if (cfg->flags & FE_FLAG_NOISE_SUPPRESS) {
-        noise_est_sz = n_bins * cfg->num_channels * sizeof(q31_t);
+    FILE *file = fopen(filename, "rb");
+    if (!file) {
+        fprintf(stderr, "Error: Cannot open file %s\n", filename);
+        info->sample_rate = 0;
+        info->num_channels = 0;
+        info->bits_per_sample = 0;
+        return;
     }
 
-    return frame_sz + fft_sz + noise_est_sz;
-}
+    // Read WAV header
+    char riff[4], fmt[4], data[4];
+    uint32_t file_size, fmt_size, byte_rate, sample_rate, data_size;
+    uint16_t audio_format, num_channels, block_align, bits_per_sample;
 
-/* ── Reset ──────────────────────────────────────────────────────────────── */
-
-fe_status_t fe_reset(fe_state_t *state)
-{
-    if (!state) return FE_ERR_NULL_PTR;
-    /* TODO: zero internal buffers, re-init pipeline blocks */
-    return FE_OK;
-}
-
-/* ── Free ───────────────────────────────────────────────────────────────── */
-
-fe_status_t fe_free(fe_state_t *state)
-{
-    if (!state) return FE_ERR_NULL_PTR;
-    /* No dynamic allocation — nothing to release on bare-metal */
-    return FE_OK;
-}
-
-fe_status_t fe_init(const fe_config_t *cfg, fe_state_t *state, void *scratch, size_t scratch_bytes)
-{
-    RTAFE_LOG("Initializing RTAFE with config: sample_rate=%u, frame_len=%u, hop_len=%u, num_channels=%u, flags=0x%02X\n",
-              cfg->sample_rate, cfg->frame_len, cfg->hop_len, cfg->num_channels, cfg->flags);
-    if (!cfg || !state) {
-        RTAFE_LOG("Invalid argument: cfg=%p, state=%p\n", (void*)cfg, (void*)state);
-        return FE_ERR_NULL_PTR;
+    // Read RIFF header
+    fread(riff, 1, 4, file);
+    if (strncmp(riff, "RIFF", 4) != 0) {
+        fprintf(stderr, "Error: Not a valid WAV file\n");
+        fclose(file);
+        info->sample_rate = 0;
+        info->num_channels = 0;
+        info->bits_per_sample = 0;
+        return;
     }
 
-    state->frame_len = cfg->frame_len;
-    state->num_channels = cfg->num_channels;
-    state->flags = cfg->flags;
-    state->scratch = (int32_t*)scratch;
-    state->scratch_bytes = scratch_bytes;
+    fread(&file_size, 4, 1, file);
+    fread(riff, 1, 4, file);  // Read "WAVE"
+    if (strncmp(riff, "WAVE", 4) != 0) {
+        fprintf(stderr, "Error: Not a valid WAV file (missing WAVE)\n");
+        fclose(file);
+        info->sample_rate = 0;
+        info->num_channels = 0;
+        info->bits_per_sample = 0;
+        return;
+    }
 
-    size_t n_bins = cfg->frame_len / 2 + 1;
-
-    /* Carve state blocks from state memory (immediately after state structure) */
-    uint8_t *state_ptr = ((uint8_t *)state) + sizeof(fe_state_t);
-
-    /* DC removal blocks (one per channel) */
-    state->dc_block = (DCRemoval *)state_ptr;
-    state_ptr += cfg->num_channels * sizeof(DCRemoval);
-
-    /* Pre-emphasis blocks (one per channel) */
-    state->pre_emphasis_block = (PreEmphasis *)state_ptr;
-    state_ptr += cfg->num_channels * sizeof(PreEmphasis);
-
-    /* Noise suppression blocks and power_min arrays (one per channel, if enabled) */
-    if (cfg->flags & FE_FLAG_NOISE_SUPPRESS) {
-        state->noise_suppress_block = (NoiseSuppress *)state_ptr;
-        state_ptr += cfg->num_channels * sizeof(noise_suppress_state_t);
-
-        /* Power minimum tracking arrays (pre-allocated for each channel) */
-        q31_t *power_min_base = (q31_t *)state_ptr;
-
-        /* Set up power_min pointers for each channel and initialize */
-        for (uint8_t ch = 0; ch < cfg->num_channels; ch++) {
-            state->noise_suppress_block[ch].power_min = power_min_base + ch * n_bins;
-            for (size_t i = 0; i < n_bins; i++) {
-                state->noise_suppress_block[ch].power_min[i] = INT32_MAX;
+    // Find fmt chunk
+    while (fread(fmt, 1, 4, file) == 4) {
+        fread(&fmt_size, 4, 1, file);
+        
+        if (strncmp(fmt, "fmt ", 4) == 0) {
+            fread(&audio_format, 2, 1, file);
+            fread(&num_channels, 2, 1, file);
+            fread(&sample_rate, 4, 1, file);
+            fread(&byte_rate, 4, 1, file);
+            fread(&block_align, 2, 1, file);
+            fread(&bits_per_sample, 2, 1, file);
+            
+            if (audio_format != 1) {
+                fprintf(stderr, "Error: Only PCM format is supported\n");
+                fclose(file);
+                info->sample_rate = 0;
+                info->num_channels = 0;
+                info->bits_per_sample = 0;
+                return;
             }
-            state->noise_suppress_block[ch].min_track_count = 0;
-            state->noise_suppress_block[ch].total_power = 0;
+            
+            // Skip remaining fmt chunk data if any
+            if (fmt_size > 16) {
+                fseek(file, fmt_size - 16, SEEK_CUR);
+            }
+            break;
+        } else {
+            // Skip this chunk
+            fseek(file, fmt_size, SEEK_CUR);
         }
-    } else {
-        state->noise_suppress_block = NULL;
     }
 
-    /* Carve noise estimates from scratch buffer */
-    if (cfg->flags & FE_FLAG_NOISE_SUPPRESS) {
-        state->noise_est = (q31_t *)scratch;
-        /* Initialize all noise estimates to a small value */
-        for (size_t i = 0; i < n_bins * cfg->num_channels; i++) {
-            state->noise_est[i] = (q31_t)((1 << 20) + (1 << 19));  /* ~0.0015 in Q1.31 */
+    // Find data chunk
+    while (fread(data, 1, 4, file) == 4) {
+        fread(&data_size, 4, 1, file);
+        
+        if (strncmp(data, "data", 4) == 0) {
+            break;
+        } else {
+            // Skip this chunk
+            fseek(file, data_size, SEEK_CUR);
         }
-    } else {
-        state->noise_est = NULL;
     }
 
-    /* Initialize per-channel processing blocks */
-    for (uint8_t ch = 0; ch < state->num_channels; ch++) {
-        dc_removal_init(&state->dc_block[ch], cfg->dc_rm_alpha);
-        pre_emphasis_init(&state->pre_emphasis_block[ch], cfg->pre_emphasis_alpha);
+    // Calculate number of samples
+    uint32_t num_bytes_per_sample = bits_per_sample / 8;
+    uint32_t total_samples = data_size / (num_channels * num_bytes_per_sample);
+    
+    info->sample_rate = sample_rate;
+    info->num_channels = num_channels;
+    info->bits_per_sample = bits_per_sample;
+    mng->input_buffer = (sample_t *)malloc(total_samples * num_channels * sizeof(sample_t));
+    if (!mng->input_buffer) {
+        fprintf(stderr, "Error: Memory allocation failed\n");
+        fclose(file);
+        info->sample_rate = 0;
+        info->num_channels = 0;
+        info->bits_per_sample = 0;
+        return;
     }
 
-    return FE_OK;
+    // Read PCM data and convert to float
+    float scale_factor = 1.0f / (1 << (bits_per_sample - 1));
+    
+    for (uint32_t i = 0; i < total_samples; i++) {
+        for (uint16_t ch = 0; ch < num_channels; ch++) {
+            int32_t sample = 0;
+            
+            if (bits_per_sample == BIT_PCM_FORMAT_8) {
+                uint8_t val;
+                fread(&val, 1, 1, file);
+                sample = (int32_t)(val - 128) << 24;  // Convert unsigned 8-bit to signed
+            } else if (bits_per_sample == BIT_PCM_FORMAT_16) {
+                int16_t val;
+                fread(&val, 2, 1, file);
+                sample = (int32_t)val << 16;
+            } else if (bits_per_sample == BIT_PCM_FORMAT_24) {
+                uint8_t bytes[3];
+                fread(bytes, 1, 3, file);
+                sample = (int32_t)(bytes[0] | (bytes[1] << 8) | (bytes[2] << 16));
+                if (sample & 0x800000) sample |= 0xFF000000;  // Sign extend
+                sample <<= 8;
+            } else if (bits_per_sample == BIT_PCM_FORMAT_32) {
+                int32_t val;
+                fread(&val, 4, 1, file);
+                sample = val;
+            }
+            
+            // Convert to float [-1.0, 1.0]
+            mng->input_buffer[i * num_channels + ch] = (sample_t)sample * scale_factor / (1 << 24);
+        }
+    }
+
+    fclose(file);
+}
+
+sample_t _fe_process_sample(fe_manager_t *mng, sample_t in)
+{
+    sample_t out = in;
+
+    if (mng->config.module_flags & FE_FLAG_DC_REMOVAL) {
+        dc_removal_sample_process(&mng->state.dc_remov_block, &out);
+    }
+    if(mng->config.module_flags & FE_FLAG_PRE_EMPHASIS) {
+        /* TBD */
+    }
+    if(mng->config.module_flags & FE_FLAG_NOISE_SUPPRESS) { 
+        /* TBD */
+    }
+    return out;
+}
+
+void fe_process(fe_manager_t *mng)
+{
+    float *input_buffer = mng->input_buffer;
+    float *output_buffer = mng->output_buffer;
+    size_t num_samples = mng->config.num_samples;
+    uint8_t num_channels = mng->config.num_channels;
+
+    for(int i = 0; i < num_samples * num_channels; i++) {
+        output_buffer[i] = _fe_process_sample(mng, input_buffer[i]);
+    }
+}
+
+void fe_init_buffer(fe_manager_t *mng, const char *filename)
+{
+    size_t num_samples;
+    fe_audio_info_t info;
+    _wav_to_buffer(filename, mng, &info);
+    mng->config.num_samples = num_samples;
+    mng->output_buffer = (float *)malloc(num_samples * info.num_channels * sizeof(sample_t));
 }

@@ -32,7 +32,7 @@ typedef struct {
  * y[n] = x[n] - x[n - 1] + alpha * y[n - 1]
  */
 
-static inline float dc_remov_sample_proc(dc_remov *c, float in)
+static inline float _dc_remov_sample_proc(dc_remov *c, float in)
 {
     c->state.x[1] = in;
     float out = c->state.x[1] - c->state.x[0] + c->coeffs.alpha * c->state.y[0];
@@ -42,7 +42,7 @@ static inline float dc_remov_sample_proc(dc_remov *c, float in)
     return out;
 }
 
-static inline s16 dc_remov_sample_proc_fixed(dc_remov *c, s16 in)
+static inline s16 _dc_remov_sample_proc_fixed(dc_remov *c, s16 in)
 {
     c->state.x[1] = in;
 
@@ -56,7 +56,16 @@ static inline s16 dc_remov_sample_proc_fixed(dc_remov *c, s16 in)
     return out;
 }
 
-static inline void dc_remov_quantize(dc_remov_coeffs *c_float, dc_remov_coeffs_fixed *c_fixed) 
+static inline void _dc_remov_quantize(dc_remov_coeffs *c_float, dc_remov_coeffs_fixed *c_fixed) 
 {
     c_fixed->alpha = FLOAT_TO_Q2_14(c_float->alpha);
+}
+
+static inline void dc_removal_sample_process(dc_remov *c, sample_t *in) 
+{
+    #ifdef FIXED_POINT
+        *in = _dc_remov_sample_proc_fixed(c, *in);
+    #else
+        *in = _dc_remov_sample_proc(c, *in);
+    #endif
 }
