@@ -21,6 +21,10 @@ typedef int64_t s64;
 #define M_PI		3.14159265358979323846	/* pi */
 #define M_PI_2		1.57079632679489661923	/* pi/2 */
 
+#define FE_LOG(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define FE_WARN(fmt, ...) fprintf(stderr, "WARN: " fmt, ##__VA_ARGS__)
+#define FE_ERROR(fmt, ...) fprintf(stderr, "ERROR: " fmt, ##__VA_ARGS__)
+
 #ifdef FIXED_POINT
 typedef u16 sample_t;
 #else
@@ -39,7 +43,7 @@ static inline float fast_sin_poly(float x)
     return x * (0.98786f + x2 * (-0.15527f + x2 * 0.005643f));
 }
 
-sincos fast_sine_cos(float phase)
+static inline sincos _fast_sine_cos(float phase)
 {
     /**
      * wrap to [-pi, pi]
@@ -59,3 +63,5 @@ sincos fast_sine_cos(float phase)
 
     return out;
 }
+
+#define fast_sine_cos(phase) _fast_sine_cos(phase)
