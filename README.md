@@ -12,7 +12,13 @@ And yes, no vibe-coding in this project, maybe I will need some help from AI (st
 
 In case you want to run some test:
 ```bash
-make test-all
-make test_dc
-make test_sincos
+make test_*(* is anything you found it makefile)
+```
+
+## How it works
+No ADC or DAC for now (I will do it in the future :D). It just purely reads the .wav file, start the processing and then giving the output .wav file. Reading all data in the .wav file into buffer array and then process it would be not sufficient. In case of 0 - 1 seconds wav file, it still works fine but imagine 3 or 5 mins at 48kHz sampling rate, the buffer needed to store those data would be too large. So this module will process each frame of the .wav file, frame length is about 5-10ms. It will perform as follow: read the .wav file, extract the data frame, check the current state of the .wav file, process the frame, output the frame, merge the output frame to the output .wav file, continue until the end of the .wav file. With this frame-based processing, the memory needed for each processing loop will be reduced. Of course, there will be a trade-off between memory and speed (you know, some more latencies for accessing the memory and allocating it), choose the appropriate frame size for the module is required to give the best performance.
+
+Run the below test to see how it processes an audio file:
+```bash
+make test_buffer_frame
 ```
