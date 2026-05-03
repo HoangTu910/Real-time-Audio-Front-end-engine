@@ -62,7 +62,7 @@ static void _find_data_chunk(FILE *file, fe_audio_info_t *info) {
     }
 }
 
-void _get_wav_info(const char *filename, fe_manager_t *mng)
+static void _get_wav_info(const char *filename, fe_manager_t *mng)
 {
     mng->buffer_mng.file = fopen(filename, "rb");
     if (!mng->buffer_mng.file) {
@@ -105,7 +105,6 @@ static bool _read_wav_frame(fe_buffer_manager_t *mng, sample_t *frame_buffer) {
 
     for(u16 i = 0; i < mng->frame_size * num_channels; i++) {
         size_t items_read = 0;
-        float f_sample = 0.0f;
         
         if (mng->info.bits_per_sample == BIT_PCM_FORMAT_16) {
             int16_t val;
@@ -115,7 +114,7 @@ static bool _read_wav_frame(fe_buffer_manager_t *mng, sample_t *frame_buffer) {
             #ifdef FIXED_POINT
                 frame_buffer[i] = val;  /* int16_t is already Q2.14 format */
             #else
-                f_sample = (float)val / 32768.0f;  /* Normalize to [-1.0, 1.0] */
+                float f_sample = (float)val / 32768.0f;  /* Normalize to [-1.0, 1.0] */
                 frame_buffer[i] = f_sample;
             #endif
             
@@ -132,7 +131,7 @@ static bool _read_wav_frame(fe_buffer_manager_t *mng, sample_t *frame_buffer) {
                 /* Scale from Q1.23 to Q2.14: shift right by 9 */
                 frame_buffer[i] = (sample_t)(val_24 >> 9);
             #else
-                f_sample = (float)val_24 / 8388608.0f;  /* Normalize to [-1.0, 1.0] */
+                float f_sample = (float)val_24 / 8388608.0f;  /* Normalize to [-1.0, 1.0] */
                 frame_buffer[i] = f_sample;
             #endif
             
@@ -145,7 +144,7 @@ static bool _read_wav_frame(fe_buffer_manager_t *mng, sample_t *frame_buffer) {
                 /* Scale from Q1.31 to Q2.14: shift right by 17 */
                 frame_buffer[i] = (sample_t)(val >> 17);
             #else
-                f_sample = (float)val / 2147483648.0f;  /* Normalize to [-1.0, 1.0] */
+                float f_sample = (float)val / 2147483648.0f;  /* Normalize to [-1.0, 1.0] */
                 frame_buffer[i] = f_sample;
             #endif
             
@@ -171,7 +170,6 @@ sample_t _fe_process_sample(fe_manager_t *mng, sample_t in)
     if(mng->config.module_flags & FE_FLAG_NOISE_SUPPRESS) { 
         /* TBD */
     }
-    FE_LOG("Processed sample: %d\n", out);
     return out;
 }
 
@@ -240,6 +238,12 @@ void fe_start_frame_streaming(fe_manager_t *mng)
         FE_ERROR("Failed to allocate frame buffers\n");
         return;
     }
+
+    /* Track memory usage */
+    mng->mem_stats.input_buffer_bytes = mng->buffer_mng.frame_size * num_channels * sizeof(sample_t);
+    mng->mem_stats.output_buffer_bytes = mng->buffer_mng.frame_size * num_channels * sizeof(sample_t);
+    mng->mem_stats.total_allocated = mng->mem_stats.input_buffer_bytes + mng->mem_stats.output_buffer_bytes;
+    mng->mem_stats.peak_usage = mng->mem_stats.total_allocated;
 
     FE_LOG("Frame streaming initialized: %u samples/frame, %u channels\n", 
             mng->buffer_mng.frame_size, num_channels);
@@ -345,10 +349,32 @@ void fe_write_frame_to_wav(FILE *out_file, const sample_t *frame_buffer, u32 fra
     _write_wav_frame(out_file, frame_buffer, frame_size, num_channels, bits_per_sample);
 }
 
-void fe_close_output_wav(FILE *out_file) {
+void inline fe_close_output_wav(FILE *out_file) {
     if (out_file) {
         fclose(out_file);
     }
+}
+
+bool inline fe_is_processing_done(fe_manager_t *mng)
+{
+    return mng->buffer_mng.eof_reached;
+}
+
+void inline fe_report_memory_usage(const fe_manager_t *mng)
+{
+    if (!mng) return;
+    
+    printf("\n========== Memory Usage Report ==========\n");
+    printf("Input Frame Buffer:   %zu bytes\n", mng->mem_stats.input_buffer_bytes);
+    printf("Output Frame Buffer:  %zu bytes\n", mng->mem_stats.output_buffer_bytes);
+    printf("─────────────────────────────────────\n");
+    printf("Total Allocated:      %zu bytes (%.2f KB)\n", 
+           mng->mem_stats.total_allocated,
+           (float)mng->mem_stats.total_allocated / 1024.0f);
+    printf("Peak Usage:           %zu bytes (%.2f KB)\n", 
+           mng->mem_stats.peak_usage,
+           (float)mng->mem_stats.peak_usage / 1024.0f);
+    printf("========================================\n\n");
 }
 
 void fe_init(fe_init_t *init)

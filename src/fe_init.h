@@ -50,12 +50,21 @@ typedef struct fe_buffer_manager_t {
     bool eof_reached;     /**< Flag: true when all samples processed */
 } fe_buffer_manager_t;
 
+typedef struct fe_memory_stats_t {
+    size_t input_buffer_bytes;   /**< Input frame buffer size */
+    size_t output_buffer_bytes;  /**< Output frame buffer size */
+    size_t state_bytes;          /**< Internal DSP state */
+    size_t total_allocated;      /**< Total bytes allocated */
+    size_t peak_usage;           /**< Peak memory usage */
+} fe_memory_stats_t;
+
 typedef struct fe_manager_t {
     fe_config_t config;          /**< Configuration parameters */
     fe_state_t state;            /**< Internal state for processing */
     fe_audio_info_t audio_info;  /**< Audio format information */
     fe_audio_buffer_t audio_buffer; /**< Buffers for input and output audio data */
     fe_buffer_manager_t buffer_mng; /**< Manager for reading audio frames from file */
+    fe_memory_stats_t mem_stats;    /**< Memory usage tracking */
 } fe_manager_t;
 
 typedef struct fe_init_t {
@@ -64,7 +73,8 @@ typedef struct fe_init_t {
     u32 frame_size_millis;  /**< Desired frame size in milliseconds (e.g., 5 for 5ms frames) */
 } fe_init_t;
 
-void _get_wav_info(const char *filename, fe_manager_t *mng);
+
+/* function declarations look like a mess lmao, need to cleanup this later :D */
 sample_t _fe_process_sample(fe_manager_t *mng, sample_t in);
 void fe_process_frame(fe_manager_t *mng);
 void fe_init_audio_info(fe_manager_t *mng, const char *filename);
@@ -78,5 +88,9 @@ FILE* fe_open_output_wav(const char *filename, const fe_audio_info_t *info, uint
 void fe_write_frame_to_wav(FILE *out_file, const sample_t *frame_buffer, u32 frame_size,
                             u16 num_channels, u16 bits_per_sample);
 void fe_close_output_wav(FILE *out_file);
+bool fe_is_processing_done(fe_manager_t *mng);
+
+/* Memory profiling */
+void fe_report_memory_usage(const fe_manager_t *mng);
 
 #define get_frame_buffer(mng, frame_buf) _read_wav_frame(&mng->buffer_mng, frame_buf)

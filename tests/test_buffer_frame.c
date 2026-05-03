@@ -4,6 +4,8 @@
 #define OUTPUT_WAV_FILE "tests/test_signal_mono_processed.wav"
 #define FRAME_SIZE_MS 5           /* Process 5ms frames */
 
+/* This would be a good skeleton for anyone who wants to use the frame processing functions */
+
 int main() {
     /* everytime you started to use the frame processing functions, config this init struct first */
     fe_init_t init = {
@@ -30,13 +32,14 @@ int main() {
     int frame_count = 0;
 
     /* loop until all the wav data is processed */
-    while (!mng->buffer_mng.eof_reached) {
+    while (!fe_is_processing_done(mng)) {
         fe_process_frame(mng);
         
         /* Write processed frame to output WAV file */
         fe_write_frame_to_wav(out_wav, mng->audio_buffer.output_buffer, mng->buffer_mng.frame_size,
                                mng->audio_info.num_channels, mng->audio_info.bits_per_sample);
         
+        /* print some stuffs to make sure it works */
         frame_count++;
         
         if (frame_count % 40 == 0) {  /* Print progress every 200ms */
@@ -49,11 +52,23 @@ int main() {
     
     FE_LOG("\nCompleted! Total frames processed: %d\n", frame_count);
     
-    /* Close output WAV file */
     fe_close_output_wav(out_wav);
     FE_LOG("Output WAV file written: %s\n", OUTPUT_WAV_FILE);
     
-    /* Step 4: Cleanup (close file, free buffers) */
+    /**
+     * Report memory usage statistics, if we use bigger frame sizes, the memory usage will be higher
+     * 
+     * I haven't test the speed performance with different frame sizes 
+     * so I'm not sure which frame size is the best for processing. 
+     * 
+     * In theory, smaller frame size means lower latency but higher CPU usage, 
+     * while bigger frame size means higher latency but lower CPU usage. 
+     * 
+     * You can try different frame sizes and see how it affects the memory usage and processing speed.
+     */
+    fe_report_memory_usage(mng);
+    
+    /* cleanup, close file and free buffers */
     fe_stop_frame_streaming(mng);
 
     free(init.mng);
