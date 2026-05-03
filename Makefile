@@ -74,6 +74,11 @@ $(BIN_DIR)/test_api: $(TEST_DIR)/test_api.c src/fe_init.c | $(BIN_DIR)
 	@echo "Compiling test_api.c with dependencies..."
 	@$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
+# Special rule for test_buffer_frame to include fe_init.c
+$(BIN_DIR)/test_buffer_frame: $(TEST_DIR)/test_buffer_frame.c src/fe_init.c | $(BIN_DIR)
+	@echo "Compiling test_buffer_frame.c with dependencies..."
+	@$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
+
 test_sincos: $(BIN_DIR)/test_sincos
 	@echo "Running test_sincos..."
 	@./$(BIN_DIR)/test_sincos
@@ -85,6 +90,10 @@ test_dc: $(BIN_DIR)/test_dc_remov
 test_api: $(BIN_DIR)/test_api
 	@echo "Running test_api..."
 	@./$(BIN_DIR)/test_api
+
+test_buffer_frame: $(BIN_DIR)/test_buffer_frame
+	@echo "Running test_buffer_frame..."
+	@./$(BIN_DIR)/test_buffer_frame
 
 test-all: $(TEST_BINS)
 	@echo "Running all tests..."

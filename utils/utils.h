@@ -1,4 +1,7 @@
 /* fixedpoint.h — Fixed-point math utilities (saturating ops, Q-format shifts) */
+#ifndef UTILS_H
+#define UTILS_H
+
 #include <stdint.h>
 #include <math.h>
 
@@ -65,3 +68,5 @@ static inline sincos _fast_sine_cos(float phase)
 }
 
 #define fast_sine_cos(phase) _fast_sine_cos(phase)
+
+#endif  /* UTILS_H */

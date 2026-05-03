@@ -4,7 +4,7 @@
 
 int main() {
     fe_manager_t mng;
-    fe_init_buffer(&mng, TEST_WAV_FILE);
+    fe_init_audio_info(&mng, TEST_WAV_FILE);
     if (mng.audio_info.sample_rate == 0) {
         fprintf(stderr, "Failed to initialize buffer with valid WAV file\n");
         return 1;
