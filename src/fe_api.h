@@ -5,8 +5,10 @@
 #include <stdbool.h>
 
 #include "module/dc_removal.h"
+#include "biquad/biquad.h"
 #include "buffer_mng.h"
 #include "utils.h"
+#include "errors_code.h"
 
 #define BIT_PCM_FORMAT_8 8
 #define BIT_PCM_FORMAT_16 16
@@ -16,7 +18,11 @@
 #define FE_FLAG_DC_REMOVAL      0x01
 #define FE_FLAG_PRE_EMPHASIS    0x02
 #define FE_FLAG_NOISE_SUPPRESS  0x04
-#define FE_FLAG_AGC              0x08
+#define FE_FLAG_FILTER 0x08
+#define FE_FLAG_AGC              0x10
+
+typedef char* fe_audio_file_name_t;
+typedef FILE* fe_audio_file_ptr_t;
 
 typedef struct fe_config_t {
     uint16_t frame_len;          /**< Frame length in samples (e.g., 512) */
@@ -28,6 +34,7 @@ typedef struct fe_config_t {
 
 typedef struct fe_state_t {
     dc_remov dc_remov_block;          /**< DC removal state (per channel) */
+    biquad biquad_block;              /**< Biquad filter state (per channel) */
     /*...*/
 } fe_state_t;
 
@@ -65,14 +72,16 @@ typedef struct fe_manager_t {
     fe_audio_buffer_t audio_buffer; /**< Buffers for input and output audio data */
     fe_buffer_manager_t buffer_mng; /**< Manager for reading audio frames from file */
     fe_memory_stats_t mem_stats;    /**< Memory usage tracking */
+    fe_audio_file_ptr_t output_wav_file; /**< File pointer for output WAV file */
 } fe_manager_t;
 
 typedef struct fe_init_t {
     fe_manager_t *mng;
-    const char *filename;
+    fe_audio_file_name_t input_wav_file;
+    fe_audio_file_name_t output_wav_file;
     u32 frame_size_millis;  /**< Desired frame size in milliseconds (e.g., 5 for 5ms frames) */
+    uint8_t module_flags;    /**< Bitfield to specify which processing modules to enable */ 
 } fe_init_t;
-
 
 /* function declarations look like a mess lmao, need to cleanup this later :D */
 sample_t _fe_process_sample(fe_manager_t *mng, sample_t in);
@@ -81,13 +90,13 @@ void fe_init_audio_info(fe_manager_t *mng, const char *filename);
 void fe_init_frame_size(fe_manager_t *mng, u32 frame_size_samples);
 void fe_start_frame_streaming(fe_manager_t *mng);
 void fe_stop_frame_streaming(fe_manager_t *mng);
-void fe_init(fe_init_t *init);
+en_fe fe_init(fe_init_t *init);
 
 /* WAV output functions */
 FILE* fe_open_output_wav(const char *filename, const fe_audio_info_t *info, uint32_t total_samples);
-void fe_write_frame_to_wav(FILE *out_file, const sample_t *frame_buffer, u32 frame_size,
+void fe_write_frame_to_wav( fe_audio_file_ptr_t out_file, const sample_t *frame_buffer, u32 frame_size,
                             u16 num_channels, u16 bits_per_sample);
-void fe_close_output_wav(FILE *out_file);
+void fe_close_output_wav(fe_audio_file_ptr_t out_file);
 bool fe_is_processing_done(fe_manager_t *mng);
 
 /* Memory profiling */

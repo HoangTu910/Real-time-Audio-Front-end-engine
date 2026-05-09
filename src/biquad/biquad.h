@@ -1,3 +1,6 @@
+#ifndef BIQUAD_H
+#define BIQUAD_H
+
 #include "utils.h"
 
 typedef struct biquad_coeffs
@@ -61,9 +64,9 @@ static inline void biquad_quantize(biquad_coeffs *c_float, biquad_coeffs_fixed *
     c_fixed->a2 = FLOAT_TO_Q2_14(c_float->a2);
 }
 
-static inline void _biquad_lpf(biquad_coeffs *res, float freq, float Q) 
+static inline void _biquad_lpf(biquad_coeffs *res, float freq, float Q, float sample_rate) 
 {
-    sincos w0 = fast_sine_cos(2.0f * M_PI * freq / SAMPLING_RATE);
+    sincos w0 = fast_sine_cos(2.0f * M_PI * freq / sample_rate);
 
     float alpha = w0.sin/(2*Q);
 	float a0_inv = 1/(1 + alpha);
@@ -76,9 +79,9 @@ static inline void _biquad_lpf(biquad_coeffs *res, float freq, float Q)
 	res->a2 = (1 - alpha) * a0_inv;
 }
 
-static inline void _biquad_hpf(biquad_coeffs *res, float freq, float Q)
+static inline void _biquad_hpf(biquad_coeffs *res, float freq, float Q, float sample_rate)
 {
-	sincos w0 = fast_sine_cos(2.0f * M_PI * freq / SAMPLING_RATE);
+	sincos w0 = fast_sine_cos(2.0f * M_PI * freq / sample_rate);
 	float alpha = w0.sin/(2*Q);
 	float a0_inv = 1/(1 + alpha);
 	float b1 = (1 + w0.cos) * a0_inv;
@@ -90,9 +93,9 @@ static inline void _biquad_hpf(biquad_coeffs *res, float freq, float Q)
 	res->a2 = (1 - alpha)	* a0_inv;
 }
 
-static inline void _biquad_notch_filter(biquad_coeffs *res, float freq, float Q)
+static inline void _biquad_notch_filter(biquad_coeffs *res, float freq, float Q, float sample_rate)
 {
-	sincos w0 = fast_sine_cos(2.0f * M_PI * freq / SAMPLING_RATE);
+	sincos w0 = fast_sine_cos(2.0f * M_PI * freq / sample_rate);
 	float alpha = w0.sin/(2*Q);
 	float a0_inv = 1/(1 + alpha);
 
@@ -103,9 +106,9 @@ static inline void _biquad_notch_filter(biquad_coeffs *res, float freq, float Q)
 	res->a2 = (1 - alpha)	* a0_inv;
 }
 
-static inline void _biquad_bpf_peak(biquad_coeffs *res, float freq, float Q)
+static inline void _biquad_bpf_peak(biquad_coeffs *res, float freq, float Q, float sample_rate)
 {
-	sincos w0 = fast_sine_cos(2.0f * M_PI * freq / SAMPLING_RATE);
+	sincos w0 = fast_sine_cos(2.0f * M_PI * freq / sample_rate);
 	float alpha = w0.sin/(2*Q);
 	float a0_inv = 1/(1 + alpha);
 
@@ -116,9 +119,9 @@ static inline void _biquad_bpf_peak(biquad_coeffs *res, float freq, float Q)
 	res->a2 = (1 - alpha)	* a0_inv;
 }
 
-static inline void _biquad_bpf(biquad_coeffs *res, float freq, float Q)
+static inline void _biquad_bpf(biquad_coeffs *res, float freq, float Q, float sample_rate)
 {
-	sincos w0 = fast_sine_cos(2.0f * M_PI * freq / SAMPLING_RATE);
+	sincos w0 = fast_sine_cos(2.0f * M_PI * freq / sample_rate);
 	float alpha = w0.sin/(2*Q);
 	float a0_inv = 1/(1 + alpha);
 
@@ -129,32 +132,40 @@ static inline void _biquad_bpf(biquad_coeffs *res, float freq, float Q)
 	res->a2 = (1 - alpha)	* a0_inv;
 }
 
-static inline void _biquad_allpass_filter(biquad_coeffs *res, float freq, float Q)
+static inline void _biquad_allpass_filter(biquad_coeffs *res, float freq, float Q, float sample_rate)
 {
-	sincos w0 = fast_sine_cos(2.0f * M_PI * freq / SAMPLING_RATE);
+	sincos w0 = fast_sine_cos(2.0f * M_PI * freq / sample_rate);
 	float alpha = w0.sin/(2*Q);
 	float a0_inv = 1/(1 + alpha);
 
 	res->b0 = (1 - alpha)	* a0_inv;
 	res->b1 = (-2*w0.cos)	* a0_inv;
-	res->b2 = 1;
+	res->b2 = 1		* a0_inv;
 	res->a1 = res->b1;
 	res->a2 = res->b0;
 }
 
-static inline float biquad_step(biquad *bq, float x)
+static inline void biquad_step(biquad *bq, sample_t *x)
 {
-	return biquad_df2t(&bq->coeff, x, &bq->state.d1, &bq->state.d2);
+#ifdef FIXED_POINT
+	*x = (sample_t)biquad_df2t_fixed(&bq->coeff_fixed, (s16)*x, &bq->state.d1, &bq->state.d2);
+#else
+	*x = biquad_df2t(&bq->coeff, *x, &bq->state.d1, &bq->state.d2);
+#endif
 }
 
-static inline s16 biquad_step_fixed(biquad *bq, s16 x)
+#ifdef FIXED_POINT
+static inline void biquad_step_fixed(biquad *bq, sample_t *x)
 {
-	return biquad_df2t_fixed(&bq->coeff_fixed, x, &bq->state.d1, &bq->state.d2);
+	*x = (sample_t)biquad_df2t_fixed(&bq->coeff_fixed, (s16)*x, &bq->state.d1, &bq->state.d2);
 }
+#endif
 
-#define biquad_lpf(bq,f,Q) _biquad_lpf(&(bq)->coeff,f,Q)
-#define biquad_hpf(bq,f,Q) _biquad_hpf(&(bq)->coeff,f,Q)
-#define biquad_notch_filter(bq,f,Q) _biquad_notch_filter(&(bq)->coeff,f,Q)
-#define biquad_bpf_peak(bq,f,Q) _biquad_bpf_peak(&(bq)->coeff,f,Q)
-#define biquad_bpf(bq,f,Q) _biquad_bpf(&(bq)->coeff,f,Q)
-#define biquad_allpass_filter(bq,f,Q) _biquad_allpass_filter(&(bq)->coeff,f,Q)
+#define biquad_lpf(bq,f,Q,sr) _biquad_lpf(&(bq)->coeff,f,Q,sr)
+#define biquad_hpf(bq,f,Q,sr) _biquad_hpf(&(bq)->coeff,f,Q,sr)
+#define biquad_notch_filter(bq,f,Q,sr) _biquad_notch_filter(&(bq)->coeff,f,Q,sr)
+#define biquad_bpf_peak(bq,f,Q,sr) _biquad_bpf_peak(&(bq)->coeff,f,Q,sr)
+#define biquad_bpf(bq,f,Q,sr) _biquad_bpf(&(bq)->coeff,f,Q,sr)
+#define biquad_allpass_filter(bq,f,Q,sr) _biquad_allpass_filter(&(bq)->coeff,f,Q,sr)
+
+#endif

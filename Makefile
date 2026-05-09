@@ -15,7 +15,7 @@ CC_ARM = arm-none-eabi-gcc
 INC_DIRS = -Iinclude -I$(SRC_DIR) -I$(UTILS_DIR) -I$(BIQUAD_DIR)
 
 LDLIBS = -lm
-CFLAGS = -Wall -O2 -DFIXED_POINT $(INC_DIRS)
+CFLAGS = -Wall -O2 $(INC_DIRS)
 
 # ARM flags (Cortex-M3 bare-metal + QEMU)
 CFLAGS_ARM = -Wall -g -O2 -DFIXED_POINT -DARM_TARGET $(INC_DIRS) \
@@ -79,6 +79,11 @@ $(BIN_DIR)/test_buffer_frame: $(TEST_DIR)/test_buffer_frame.c src/fe_init.c | $(
 	@echo "Compiling test_buffer_frame.c with dependencies..."
 	@$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
+# rule for test_benchmark
+$(BIN_DIR)/test_benchmark: $(TEST_DIR)/test_benchmark.c src/fe_init.c | $(BIN_DIR)
+	@echo "Compiling test_benchmark.c with dependencies..."
+	@$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
+
 test_sincos: $(BIN_DIR)/test_sincos
 	@echo "Running test_sincos..."
 	@./$(BIN_DIR)/test_sincos
@@ -94,6 +99,10 @@ test_api: $(BIN_DIR)/test_api
 test_buffer_frame: $(BIN_DIR)/test_buffer_frame
 	@echo "Running test_buffer_frame..."
 	@./$(BIN_DIR)/test_buffer_frame
+
+test_benchmark: $(BIN_DIR)/test_benchmark
+	@echo "Running test_benchmark..."
+	@./$(BIN_DIR)/test_benchmark
 
 test-all: $(TEST_BINS)
 	@echo "Running all tests..."

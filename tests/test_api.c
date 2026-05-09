@@ -1,4 +1,4 @@
-#include "fe_init.h"
+#include "fe_api.h"
 
 #define TEST_WAV_FILE "tests/test_signal_stereo.wav"
 

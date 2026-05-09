@@ -19,7 +19,7 @@ typedef int64_t s64;
 #define FLOAT_TO_Q31(x) ((q31)((x) * 2147483648.0f))
 #define FLOAT_TO_Q2_14(x)((q31)((x) * 16384.0f))
 
-#define SAMPLING_RATE (48000.0)
+#define SAMPLING_RATE (16000.0)
 
 #define M_PI		3.14159265358979323846	/* pi */
 #define M_PI_2		1.57079632679489661923	/* pi/2 */
@@ -46,23 +46,36 @@ static inline float fast_sin_poly(float x)
     return x * (0.98786f + x2 * (-0.15527f + x2 * 0.005643f));
 }
 
-static inline sincos _fast_sine_cos(float phase)
+static inline sincos fast_sine_cos(float x)
 {
-    /**
-     * wrap to [-pi, pi]
-     * Why? According to the reference: "This is the best fifth degree polynomial approximation for sin(x) over [-pi, pi]"
-     */
-    if (phase > M_PI) phase -= 2 * M_PI;
-    if (phase < -M_PI) phase += 2 * M_PI;
+    // Range reduce to [-pi, pi]
+    const float inv_two_pi = 0.15915494309189535f; // 1 / (2*pi)
+    const float two_pi = 6.283185307179586f;
+
+    float k = roundf(x * inv_two_pi);
+    x = x - k * two_pi;
+
+    // Map to [-pi/2, pi/2]
+    float sign_sin = 1.0f;
+    float sign_cos = 1.0f;
+
+    if (x > M_PI_2) {
+        x = M_PI - x;
+        sign_cos = -1.0f;
+    } else if (x < -M_PI_2) {
+        x = -M_PI - x;
+        sign_cos = -1.0f;
+    }
+
+    float x2 = x * x;
+
+    // Minimax polynomial (degree 5)
+    float sin_poly = x * (1.0f + x2 * (-0.16666667f + x2 * 0.0083333310f));
+    float cos_poly = 1.0f + x2 * (-0.5f + x2 * 0.041666638f);
 
     sincos out;
-
-    out.sin = fast_sin_poly(phase);
-
-    float phase_shift = phase + M_PI_2;
-    if (phase_shift > M_PI) phase_shift -= 2 * M_PI;
-
-    out.cos = fast_sin_poly(phase_shift);
+    out.sin = sign_sin * sin_poly;
+    out.cos = sign_cos * cos_poly;
 
     return out;
 }

@@ -1,4 +1,4 @@
-#include "fe_init.h"
+#include "fe_api.h"
 
 #define TEST_WAV_FILE "tests/test_signal_mono.wav"
 #define OUTPUT_WAV_FILE "tests/test_signal_mono_processed.wav"
@@ -9,8 +9,8 @@
 int main() {
     /* everytime you started to use the frame processing functions, config this init struct first */
     fe_init_t init = {
-        .mng = (fe_manager_t *)malloc(sizeof(fe_manager_t)),
-        .filename = TEST_WAV_FILE,
+        .input_wav_file = TEST_WAV_FILE,
+        .output_wav_file = OUTPUT_WAV_FILE,
         .frame_size_millis = FRAME_SIZE_MS
     };
     
