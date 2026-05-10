@@ -1,4 +1,4 @@
-#include "fe_init.h"
+#include "fe_api.h"
 
 static void _read_riff_header(FILE *file, fe_audio_info_t *info) {
     char riff[4], wave[4];

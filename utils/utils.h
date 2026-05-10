@@ -5,10 +5,12 @@
 #include <stdint.h>
 #include <math.h>
 
+typedef uint8_t u8;
 typedef uint32_t u32;
 typedef uint16_t u16;
 typedef int32_t s32;
 typedef int16_t s16;
+typedef int8_t s8;
 typedef uint64_t u64;
 typedef int64_t s64;
 
@@ -79,7 +81,5 @@ static inline sincos fast_sine_cos(float x)
 
     return out;
 }
-
-#define fast_sine_cos(phase) _fast_sine_cos(phase)
 
 #endif  /* UTILS_H */

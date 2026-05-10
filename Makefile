@@ -9,26 +9,23 @@ TARGET_ARM = biquad_test_arm
 # Host compiler
 CC = gcc
 
-# ARM compiler
-CC_ARM = arm-none-eabi-gcc
+# ARMv8-A compiler (AArch64)
+CC_ARM = aarch64-linux-gnu-gcc
 
 INC_DIRS = -Iinclude -I$(SRC_DIR) -I$(UTILS_DIR) -I$(BIQUAD_DIR)
 
 LDLIBS = -lm
 CFLAGS = -Wall -O2 $(INC_DIRS)
 
-# ARM flags (Cortex-M3 bare-metal + QEMU)
-CFLAGS_ARM = -Wall -g -O2 -DFIXED_POINT -DARM_TARGET $(INC_DIRS) \
-             -mcpu=cortex-m3 -mthumb -mfloat-abi=soft
+# ARM flags
+CFLAGS_ARM = -Wall -O3 \
+             -march=armv8-a+simd \
+             -ffast-math \
+             -DFIXED_POINT -DARM_TARGET \
+             $(INC_DIRS)
 
-LDFLAGS_ARM = -T arm-cortexM/linker.ld \
-              -nostdlib -nostartfiles \
-              -lgcc -lm
-
-SRCS = src/main.c $(ARM_CORTEX_M_DIR)/startup.c
-
-OBJS = $(SRCS:.c=.o)
-OBJS_ARM = $(patsubst %.c,%.arm.o,$(SRCS))
+LDFLAGS_ARM = -static
+LDLIBS_ARM  = -lm
 
 # =========================
 # HOST BUILD
@@ -47,7 +44,8 @@ $(TARGET): $(OBJS)
 arm: $(TARGET_ARM)
 
 $(TARGET_ARM): $(OBJS_ARM)
-	$(CC_ARM) $(OBJS_ARM) -o $(TARGET_ARM).elf $(LDFLAGS_ARM)
+	$(CC_ARM) $(OBJS_ARM) -o $(TARGET_ARM) \
+	    $(LDFLAGS_ARM) $(LDLIBS_ARM)
 
 %.arm.o: %.c
 	$(CC_ARM) $(CFLAGS_ARM) -c $< -o $@
@@ -61,40 +59,25 @@ BIN_DIR   = bin
 TEST_SRCS = $(wildcard $(TEST_DIR)/*.c)
 TEST_BINS = $(patsubst $(TEST_DIR)/%.c, $(BIN_DIR)/%, $(TEST_SRCS))
 
+# Core library source files needed for tests
+FE_CORE_SRCS = src/fe_api.c src/module/dc_removal.c src/biquad/biquad.c
+
 $(BIN_DIR):
 	@mkdir -p $(BIN_DIR)
 
-
-$(BIN_DIR)/%: $(TEST_DIR)/%.c | $(BIN_DIR)
+# Compile with host compiler
+$(BIN_DIR)/%: $(TEST_DIR)/%.c $(FE_CORE_SRCS) | $(BIN_DIR)
 	@echo "Compiling $<..."
-	@$(CC) $(CFLAGS) $< -o $@ $(LDLIBS)
+	@$(CC) $(CFLAGS) $< $(FE_CORE_SRCS) -o $@ $(LDLIBS)
 
-# Special rule for test_api to include fe_init.c
-$(BIN_DIR)/test_api: $(TEST_DIR)/test_api.c src/fe_init.c | $(BIN_DIR)
-	@echo "Compiling test_api.c with dependencies..."
-	@$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
-
-# Special rule for test_buffer_frame to include fe_init.c
-$(BIN_DIR)/test_buffer_frame: $(TEST_DIR)/test_buffer_frame.c src/fe_init.c | $(BIN_DIR)
-	@echo "Compiling test_buffer_frame.c with dependencies..."
-	@$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
-
-# rule for test_benchmark
-$(BIN_DIR)/test_benchmark: $(TEST_DIR)/test_benchmark.c src/fe_init.c | $(BIN_DIR)
-	@echo "Compiling test_benchmark.c with dependencies..."
-	@$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
+# Compile with ARM compiler
+$(BIN_DIR)/arm_%: $(TEST_DIR)/%.c $(FE_CORE_SRCS) | $(BIN_DIR)
+	@echo "Compiling ARM $<..."
+	@$(CC_ARM) $(CFLAGS_ARM) $< $(FE_CORE_SRCS) -o $@ $(LDFLAGS_ARM)
 
 test_sincos: $(BIN_DIR)/test_sincos
 	@echo "Running test_sincos..."
 	@./$(BIN_DIR)/test_sincos
-
-test_dc: $(BIN_DIR)/test_dc_remov
-	@echo "Running test_dc_remov..."
-	@./$(BIN_DIR)/test_dc_remov
-
-test_api: $(BIN_DIR)/test_api
-	@echo "Running test_api..."
-	@./$(BIN_DIR)/test_api
 
 test_buffer_frame: $(BIN_DIR)/test_buffer_frame
 	@echo "Running test_buffer_frame..."
@@ -104,14 +87,8 @@ test_benchmark: $(BIN_DIR)/test_benchmark
 	@echo "Running test_benchmark..."
 	@./$(BIN_DIR)/test_benchmark
 
-test-all: $(TEST_BINS)
-	@echo "Running all tests..."
-	@for bin in $(TEST_BINS); do \
-		echo "---------------------------"; \
-		echo "Executing $$bin..."; \
-		./$$bin; \
-	done
-	@echo "---------------------------"
+arm_test_benchmark: $(BIN_DIR)/arm_test_benchmark
+	@echo "ARM test compiled: $(BIN_DIR)/arm_test_benchmark"
 
 clean-test:
 	@echo "Cleaning test artifacts..."
@@ -120,4 +97,4 @@ clean-test:
 clean: clean-test
 	rm -f $(OBJS) $(OBJS_ARM) $(TARGET) $(TARGET_ARM).elf
 
-.PHONY: all arm test test-all clean-test clean
+.PHONY: all arm_test_benchmark test test-all clean-test clean

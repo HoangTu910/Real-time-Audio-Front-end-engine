@@ -19,5 +19,9 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 
+# Benchmark
+gem5/
+m5out/
+
 AGENTS.md
 CODEBASE_OVERVIEW.md

@@ -20,5 +20,5 @@ No ADC or DAC for now (I will do it in the future :D). It just purely reads the 
 
 Run the below test to see how it processes an audio file:
 ```bash
-make test_buffer_frame
+make test_benchmark
 ```

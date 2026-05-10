@@ -25,11 +25,11 @@ typedef char* fe_audio_file_name_t;
 typedef FILE* fe_audio_file_ptr_t;
 
 typedef struct fe_config_t {
-    uint16_t frame_len;          /**< Frame length in samples (e.g., 512) */
-    uint8_t num_channels;        /**< Number of input channels (e.g., 1 for mono) */
-    uint32_t sample_rate;        /**< Sampling rate in Hz (e.g., 16000) */
-    uint8_t module_flags;        /**< Bitfield for module enable/disable (e.g., noise suppression) */
-    size_t num_samples;          /**< Total number of samples in the input buffer */
+    u16 frame_len;          /**< Frame length in samples (e.g., 512) */
+    u8 num_channels;        /**< Number of input channels (e.g., 1 for mono) */
+    u32 sample_rate;        /**< Sampling rate in Hz (e.g., 16000) */
+    u16 module_flags;        /**< Bitfield for module enable/disable (e.g., noise suppression) */
+    size_t num_samples;     /**< Total number of samples in the input buffer */
 } fe_config_t;
 
 typedef struct fe_state_t {
@@ -39,8 +39,8 @@ typedef struct fe_state_t {
 } fe_state_t;
 
 typedef struct fe_audio_info_t {
-    uint32_t file_size, fmt_size, byte_rate, sample_rate, data_size;
-    uint16_t audio_format, num_channels, block_align, bits_per_sample;
+    u32 file_size, fmt_size, byte_rate, sample_rate, data_size;
+    u16 audio_format, num_channels, block_align, bits_per_sample;
 } fe_audio_info_t;
 
 typedef struct fe_audio_buffer_t {
@@ -80,7 +80,7 @@ typedef struct fe_init_t {
     fe_audio_file_name_t input_wav_file;
     fe_audio_file_name_t output_wav_file;
     u32 frame_size_millis;  /**< Desired frame size in milliseconds (e.g., 5 for 5ms frames) */
-    uint8_t module_flags;    /**< Bitfield to specify which processing modules to enable */ 
+    u16 module_flags;    /**< Bitfield to specify which processing modules to enable */ 
 } fe_init_t;
 
 /* function declarations look like a mess lmao, need to cleanup this later :D */

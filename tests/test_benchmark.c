@@ -12,7 +12,7 @@ int main() {
         .input_wav_file = TEST_WAV_FILE,
         .output_wav_file = OUTPUT_WAV_FILE,
         .frame_size_millis = FRAME_SIZE_MS,
-        .module_flags = FE_FLAG_FILTER  /* Enable DC removal and biquad filter for testing */
+        .module_flags = FE_FLAG_FILTER
     };
     en_fe result = fe_init(&init);
     if (result != FE_ERROR_NONE) {
@@ -26,7 +26,6 @@ int main() {
     mng->state.biquad_block.coeff = bq.coeff;
     biquad_quantize(&mng->state.biquad_block.coeff, &mng->state.biquad_block.coeff_fixed);
 
-    int frame_count = 0;
     /* loop until all the wav data is processed */
     while (!fe_is_processing_done(mng)) {
         fe_process_frame(mng);
@@ -34,20 +33,8 @@ int main() {
         /* Write processed frame to output WAV file */
         fe_write_frame_to_wav(mng->output_wav_file, mng->audio_buffer.output_buffer, mng->buffer_mng.frame_size,
                                mng->audio_info.num_channels, mng->audio_info.bits_per_sample);
-        
-        /* print some stuffs to make sure it works */
-        frame_count++;
-        
-        if (frame_count % 40 == 0) {  /* Print progress every 200ms */
-            FE_LOG("  Processed %d frames (%u samples, %.1f%%)\n",
-                   frame_count,
-                   mng->buffer_mng.samples_read,
-                   100.0f * mng->buffer_mng.samples_read / mng->buffer_mng.total_samples);
-        }
     }
-    
-    FE_LOG("\nCompleted! Total frames processed: %d\n", frame_count);
-    
+        
     fe_close_output_wav(mng->output_wav_file);
     FE_LOG("Output WAV file written: %s\n", OUTPUT_WAV_FILE);
 
