@@ -12,7 +12,7 @@ int main() {
         .input_wav_file = TEST_WAV_FILE,
         .output_wav_file = OUTPUT_WAV_FILE,
         .frame_size_millis = FRAME_SIZE_MS,
-        .module_flags = FE_FLAG_FILTER
+        .module_flags = FE_FLAG_FILTER | FE_FLAG_DC_REMOVAL  /* Enable the processing modules you want to benchmark */
     };
     en_fe result = fe_init(&init);
     if (result != FE_ERROR_NONE) {
@@ -30,13 +30,8 @@ int main() {
     while (!fe_is_processing_done(mng)) {
         fe_process_frame(mng);
         
-        /* Write processed frame to output WAV file */
-        fe_write_frame_to_wav(mng->output_wav_file, mng->audio_buffer.output_buffer, mng->buffer_mng.frame_size,
-                               mng->audio_info.num_channels, mng->audio_info.bits_per_sample);
+        /* I don't want to write processed frames to a WAV file to keep the benchmark data precise */
     }
-        
-    fe_close_output_wav(mng->output_wav_file);
-    FE_LOG("Output WAV file written: %s\n", OUTPUT_WAV_FILE);
 
     /* cleanup, close file and free buffers */
     fe_stop_frame_streaming(mng);

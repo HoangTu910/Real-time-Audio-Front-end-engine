@@ -18,7 +18,7 @@ LDLIBS = -lm
 CFLAGS = -Wall -O2 $(INC_DIRS)
 
 # ARM flags
-CFLAGS_ARM = -Wall -O3 \
+CFLAGS_ARM = -Wall -O2 \
              -march=armv8-a+simd \
              -ffast-math \
              -DFIXED_POINT -DARM_TARGET \

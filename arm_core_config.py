@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.components.processors.cpu_types import CPUTypes
@@ -28,9 +30,13 @@ board = SimpleBoard(
     cache_hierarchy=cache
 )
 
-board.set_se_binary_workload(
-    BinaryResource(local_path="bin/arm_test_benchmark")
-)
+binary_path = Path("bin/arm_test_benchmark")
+if not binary_path.exists():
+    raise FileNotFoundError(
+        "Cannot find the binary for the ARM benchmark. Build it first using the provided Makefile."
+    )
+
+board.set_se_binary_workload(BinaryResource(local_path=str(binary_path)))
 
 sim = Simulator(board=board)
 sim.run()
