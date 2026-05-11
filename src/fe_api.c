@@ -156,7 +156,8 @@ static bool _read_wav_frame(fe_buffer_manager_t *mng, sample_t *frame_buffer) {
     return true;  /* Frame read successfully */
 }
 
-static inline void _deinterleave_2ch(const sample_t *in, float *restrict ch1, float *restrict ch2, int num_samples) {
+#ifdef OPTIMIZATION_METHOD
+static inline void _deinterleave_2ch(const sample_t *in, sample_t *restrict ch1, sample_t *restrict ch2, int num_samples) {
     int i = 0;
     int j = 0;
 
@@ -180,9 +181,9 @@ static inline void _deinterleave_2ch(const sample_t *in, float *restrict ch1, fl
     }
 }
 
-static inline void _interleave_2ch(const float *restrict ch1,
-                            const float *restrict ch2,
-                            float *restrict out,
+static inline void _interleave_2ch(const sample_t *restrict ch1,
+                            const sample_t *restrict ch2,
+                            sample_t *restrict out,
                             int frame_size)
 {
     int i = 0;
@@ -207,10 +208,44 @@ static inline void _interleave_2ch(const float *restrict ch1,
         out[2*i + 1] = ch2[i];
     }
 }
+#endif
 
-sample_t _fe_process_sample(fe_manager_t *mng, sample_t in)
+#ifdef OPTIMIZATION_METHOD
+static inline void _fe_process_sample_vec_2ch(fe_manager_t *mng, sample_t in_ch1, sample_t in_ch2, sample_t *out_ch1, sample_t *out_ch2)
+{
+    *out_ch1 = in_ch1;
+    *out_ch2 = in_ch2;
+    if(mng->config.module_flags & FE_FLAG_FILTER) {
+        /* TBD */
+        #ifdef FIXED_POINT
+            biquad_step_fixed(&mng->state.biquad_block, out_ch1);
+            biquad_step_fixed(&mng->state.biquad_block, out_ch2);
+        #else
+            biquad_step_vec_2ch(&mng->state.biquad_block, out_ch1, out_ch2, out_ch1, out_ch2);
+        #endif
+    }
+    if (mng->config.module_flags & FE_FLAG_DC_REMOVAL) {
+        dc_removal_sample_process(&mng->state.dc_remov_block, out_ch1);
+        dc_removal_sample_process(&mng->state.dc_remov_block, out_ch2);
+    }
+    if (mng->config.module_flags & FE_FLAG_PRE_EMPHASIS) {
+        /* TBD */
+    }
+    if (mng->config.module_flags & FE_FLAG_NOISE_SUPPRESS) { 
+        /* TBD */
+    }
+}
+#endif
+
+sample_t inline _fe_process_sample(fe_manager_t *mng, sample_t in)
 {
     sample_t out = in;
+    /* TBD */
+    #ifdef FIXED_POINT
+        biquad_step_fixed(&mng->state.biquad_block, &out);
+    #else
+        biquad_step(&mng->state.biquad_block, &out);
+    #endif
     if(mng->config.module_flags & FE_FLAG_FILTER) {
         /* TBD */
         #ifdef FIXED_POINT
@@ -222,10 +257,10 @@ sample_t _fe_process_sample(fe_manager_t *mng, sample_t in)
     if (mng->config.module_flags & FE_FLAG_DC_REMOVAL) {
         dc_removal_sample_process(&mng->state.dc_remov_block, &out);
     }
-    if(mng->config.module_flags & FE_FLAG_PRE_EMPHASIS) {
+    if (mng->config.module_flags & FE_FLAG_PRE_EMPHASIS) {
         /* TBD */
     }
-    if(mng->config.module_flags & FE_FLAG_NOISE_SUPPRESS) { 
+    if (mng->config.module_flags & FE_FLAG_NOISE_SUPPRESS) { 
         /* TBD */
     }
     return out;
@@ -250,19 +285,29 @@ void fe_process_frame(fe_manager_t *mng)
         return;
     }
 
+    #ifdef OPTIMIZATION_METHOD
     if (num_channels == 2) {
-        float *ch1 = mng->deinterleave_buffer.buffer_channel_1;
-        float *ch2 = mng->deinterleave_buffer.buffer_channel_2;
+        sample_t *ch1 = mng->deinterleave_buffer.buffer_channel_1;
+        sample_t *ch2 = mng->deinterleave_buffer.buffer_channel_2;
 
         _deinterleave_2ch(input, ch1, ch2, num_samples);
 
         for (int i = 0; i < frame_size; i++) {
-            ch1[i] = _fe_process_sample(mng, ch1[i]);
-            ch2[i] = _fe_process_sample(mng, ch2[i]);
+            _fe_process_sample_vec_2ch(mng, ch1[i], ch2[i], &ch1[i], &ch2[i]);
         }
 
         _interleave_2ch(ch1, ch2, output, frame_size);
     }
+    else {
+        for (int i = 0; i < num_samples; i++) {
+            output[i] = _fe_process_sample(mng, input[i]);
+        }
+    }
+    #else
+    for (int i = 0; i < num_samples; i++) {
+        output[i] = _fe_process_sample(mng, input[i]);
+    }
+    #endif
 
     mng->buffer_mng.samples_read += frame_size;
 }
@@ -305,6 +350,17 @@ void fe_start_frame_streaming(fe_manager_t *mng)
         return;
     }
 
+    if(num_channels == 2) {
+        allocate_deinterleave_buffer(mng, mng->deinterleave_buffer.buffer_channel_1);
+        allocate_deinterleave_buffer(mng, mng->deinterleave_buffer.buffer_channel_2);
+    }
+    else if(num_channels == 4) {
+        allocate_deinterleave_buffer(mng, mng->deinterleave_buffer.buffer_channel_1);
+        allocate_deinterleave_buffer(mng, mng->deinterleave_buffer.buffer_channel_2);
+        allocate_deinterleave_buffer(mng, mng->deinterleave_buffer.buffer_channel_3);
+        allocate_deinterleave_buffer(mng, mng->deinterleave_buffer.buffer_channel_4);
+    }
+
     /* Track memory usage */
     mng->mem_stats.input_buffer_bytes = mng->buffer_mng.frame_size * num_channels * sizeof(sample_t);
     mng->mem_stats.output_buffer_bytes = mng->buffer_mng.frame_size * num_channels * sizeof(sample_t);
@@ -322,12 +378,22 @@ void fe_stop_frame_streaming(fe_manager_t *mng)
         mng->buffer_mng.file = NULL;
     }
     if (mng->audio_buffer.input_buffer) {
-        free(mng->audio_buffer.input_buffer);
-        mng->audio_buffer.input_buffer = NULL;
+        free_processed_buffer(mng->audio_buffer.input_buffer);
     }
     if (mng->audio_buffer.output_buffer) {
-        free(mng->audio_buffer.output_buffer);
-        mng->audio_buffer.output_buffer = NULL;
+        free_processed_buffer(mng->audio_buffer.output_buffer);
+    }
+    if (mng->deinterleave_buffer.buffer_channel_1) {
+        free_processed_buffer(mng->deinterleave_buffer.buffer_channel_1);
+    }
+    if (mng->deinterleave_buffer.buffer_channel_2) {
+        free_processed_buffer(mng->deinterleave_buffer.buffer_channel_2);
+    }
+    if (mng->deinterleave_buffer.buffer_channel_3) {
+        free_processed_buffer(mng->deinterleave_buffer.buffer_channel_3);
+    }
+    if (mng->deinterleave_buffer.buffer_channel_4) {
+        free_processed_buffer(mng->deinterleave_buffer.buffer_channel_4);
     }
     FE_LOG("Frame streaming stopped and buffers freed\n");
 }

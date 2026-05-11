@@ -1,4 +1,4 @@
-!bin/bash
+#!/bin/bash
 
 echo "Running gem5 simulation..."
 ./gem5/build/ARM/gem5.opt arm_core_config.py
