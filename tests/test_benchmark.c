@@ -12,7 +12,7 @@ int main() {
         .input_wav_file = TEST_WAV_FILE,
         .output_wav_file = OUTPUT_WAV_FILE,
         .frame_size_millis = FRAME_SIZE_MS,
-        .module_flags = FE_FLAG_FILTER | FE_FLAG_DC_REMOVAL  /* Enable the processing modules you want to benchmark */
+        .module_flags = FE_FLAG_FILTER  /* Enable the processing modules you want to benchmark */
     };
     en_fe result = fe_init(&init);
     if (result != FE_ERROR_NONE) {

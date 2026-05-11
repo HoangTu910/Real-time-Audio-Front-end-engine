@@ -152,9 +152,60 @@ static bool _read_wav_frame(fe_buffer_manager_t *mng, sample_t *frame_buffer) {
             fprintf(stderr, "Unsupported bits per sample: %u\n", mng->info.bits_per_sample);
             return false;   
         }
-    }
-    
+    }    
     return true;  /* Frame read successfully */
+}
+
+static inline void _deinterleave_2ch(const sample_t *in, float *restrict ch1, float *restrict ch2, int num_samples) {
+    int i = 0;
+    int j = 0;
+
+    for(; i <= num_samples - 8; i+=8, j+=4) {
+        ch1[j]     = in[i];
+        ch2[j]     = in[i + 1];
+
+        ch1[j + 1] = in[i + 2];
+        ch2[j + 1] = in[i + 3];
+
+        ch1[j + 2] = in[i + 4];
+        ch2[j + 2] = in[i + 5];
+
+        ch1[j + 3] = in[i + 6];
+        ch2[j + 3] = in[i + 7];
+    }
+
+    for (; i < num_samples; i += 2, j++) {
+        ch1[j] = in[i];
+        ch2[j] = in[i + 1];
+    }
+}
+
+static inline void _interleave_2ch(const float *restrict ch1,
+                            const float *restrict ch2,
+                            float *restrict out,
+                            int frame_size)
+{
+    int i = 0;
+
+    for (; i <= frame_size - 4; i += 4) {
+
+        out[2*i]     = ch1[i];
+        out[2*i + 1] = ch2[i];
+
+        out[2*i + 2] = ch1[i + 1];
+        out[2*i + 3] = ch2[i + 1];
+
+        out[2*i + 4] = ch1[i + 2];
+        out[2*i + 5] = ch2[i + 2];
+
+        out[2*i + 6] = ch1[i + 3];
+        out[2*i + 7] = ch2[i + 3];
+    }
+
+    for (; i < frame_size; i++) {
+        out[2*i]     = ch1[i];
+        out[2*i + 1] = ch2[i];
+    }
 }
 
 sample_t _fe_process_sample(fe_manager_t *mng, sample_t in)
@@ -182,30 +233,38 @@ sample_t _fe_process_sample(fe_manager_t *mng, sample_t in)
 
 void fe_process_frame(fe_manager_t *mng)
 {
-    /* Check if already at EOF */
-    if (mng->buffer_mng.eof_reached) {
+    if (mng->buffer_mng.eof_reached)
         return;
-    }
 
-    sample_t *input_buffer = mng->audio_buffer.input_buffer;
-    sample_t *output_buffer = mng->audio_buffer.output_buffer;
+    sample_t *input = mng->audio_buffer.input_buffer;
+    sample_t *output = mng->audio_buffer.output_buffer;
+
     uint8_t num_channels = mng->audio_info.num_channels;
+    int frame_size = mng->buffer_mng.frame_size;
+    int num_samples = frame_size * num_channels;
 
-    /* Read frame from file */
-    bool has_data = get_frame_buffer(mng, input_buffer);
-    
+    bool has_data = get_frame_buffer(mng, input);
+
     if (!has_data) {
         mng->buffer_mng.eof_reached = true;
         return;
     }
 
-    /* Process each sample in the frame */
-    for(u32 i = 0; i < mng->buffer_mng.frame_size * num_channels; i++) {
-        output_buffer[i] = _fe_process_sample(mng, input_buffer[i]);
+    if (num_channels == 2) {
+        float *ch1 = mng->deinterleave_buffer.buffer_channel_1;
+        float *ch2 = mng->deinterleave_buffer.buffer_channel_2;
+
+        _deinterleave_2ch(input, ch1, ch2, num_samples);
+
+        for (int i = 0; i < frame_size; i++) {
+            ch1[i] = _fe_process_sample(mng, ch1[i]);
+            ch2[i] = _fe_process_sample(mng, ch2[i]);
+        }
+
+        _interleave_2ch(ch1, ch2, output, frame_size);
     }
 
-    /* tracking how many samples we've processed */
-    mng->buffer_mng.samples_read += mng->buffer_mng.frame_size;
+    mng->buffer_mng.samples_read += frame_size;
 }
 
 void fe_init_audio_info(fe_manager_t *mng, const char *filename)

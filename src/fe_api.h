@@ -48,6 +48,13 @@ typedef struct fe_audio_buffer_t {
     sample_t *output_buffer;
 } fe_audio_buffer_t;
 
+typedef struct fe_audio_deinterleave_buffer {
+    sample_t *buffer_channel_1;
+    sample_t *buffer_channel_2;
+    sample_t *buffer_channel_3;
+    sample_t *buffer_channel_4;
+} fe_audio_deinterleave_buffer;
+
 typedef struct fe_buffer_manager_t {
     FILE *file;           /**< File pointer for the audio file (stays open during processing) */
     fe_audio_info_t info; /**< Audio format information */
@@ -73,6 +80,7 @@ typedef struct fe_manager_t {
     fe_buffer_manager_t buffer_mng; /**< Manager for reading audio frames from file */
     fe_memory_stats_t mem_stats;    /**< Memory usage tracking */
     fe_audio_file_ptr_t output_wav_file; /**< File pointer for output WAV file */
+    fe_audio_deinterleave_buffer deinterleave_buffer;
 } fe_manager_t;
 
 typedef struct fe_init_t {
