@@ -19,7 +19,11 @@ typedef int64_t s64;
 
 #define FLOAT_TO_Q15(x) ((q15)((x) * 32768.0f))
 #define FLOAT_TO_Q31(x) ((q31)((x) * 2147483648.0f))
-#define FLOAT_TO_Q2_14(x)((q31)((x) * 16384.0f))
+#define FLOAT_TO_Q2_14(x) ((q31)((x) * 16384.0f))
+
+#define Q2_14_SHIFT 14
+
+#define CLIP_S16(x) ((x) > INT16_MAX ? INT16_MAX : ((x) < INT16_MIN ? INT16_MIN : (s16)(x)))
 
 #define SAMPLING_RATE (16000.0)
 
@@ -31,7 +35,7 @@ typedef int64_t s64;
 #define FE_ERROR(fmt, ...) fprintf(stderr, "ERROR: " fmt, ##__VA_ARGS__)
 
 #ifdef FIXED_POINT
-typedef u16 sample_t;
+typedef s16 sample_t;
 #else
 typedef float sample_t;
 #endif

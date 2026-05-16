@@ -56,7 +56,7 @@ static inline s16 _dc_remov_sample_proc_fixed(dc_remov *c, s16 in)
     return out;
 }
 
-static inline void _dc_remov_quantize(dc_remov_coeffs *c_float, dc_remov_coeffs_fixed *c_fixed) 
+static inline void dc_remov_quantize(dc_remov_coeffs *c_float, dc_remov_coeffs_fixed *c_fixed) 
 {
     c_fixed->alpha = FLOAT_TO_Q2_14(c_float->alpha);
 }

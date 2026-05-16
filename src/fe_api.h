@@ -7,6 +7,7 @@
 #include "module/dc_removal.h"
 #include "biquad/biquad.h"
 #include "buffer_mng.h"
+#include "module/preemphasis.h"
 #include "utils.h"
 #include "errors_code.h"
 
@@ -15,11 +16,13 @@
 #define BIT_PCM_FORMAT_24 24
 #define BIT_PCM_FORMAT_32 32
 
+#define FE_FLAG_NONE 0x00
 #define FE_FLAG_DC_REMOVAL      0x01
 #define FE_FLAG_PRE_EMPHASIS    0x02
 #define FE_FLAG_NOISE_SUPPRESS  0x04
 #define FE_FLAG_FILTER 0x08
 #define FE_FLAG_AGC              0x10
+#define FE_FLAG_FADER            0x20
 
 typedef char* fe_audio_file_name_t;
 typedef FILE* fe_audio_file_ptr_t;
@@ -35,7 +38,7 @@ typedef struct fe_config_t {
 typedef struct fe_state_t {
     dc_remov dc_remov_block;          /**< DC removal state (per channel) */
     biquad biquad_block;              /**< Biquad filter state (per channel) */
-    /*...*/
+    pre_emphasis pre_emphasis_block;  /**< Pre-emphasis state (per channel) */
 } fe_state_t;
 
 typedef struct fe_audio_info_t {

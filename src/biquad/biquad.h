@@ -18,15 +18,22 @@ typedef struct {
 
 typedef struct biquad_state {
 #ifdef OPTIMIZATION_METHOD
-	float d1_1, d2_1;  /* State for channel 1 */
-	float d1_2, d2_2;  /* State for channel 2 */
-	float d1_3, d2_3;  /* State for channel 3 */
-	float d1_4, d2_4;  /* State for channel 4 */
+	#ifdef FIXED_POINT
+		s64 d1_1, d2_1;
+		s64 d1_2, d2_2;
+		s64 d1_3, d2_3;
+		s64 d1_4, d2_4;
+	#else
+		float d1_1, d2_1;  /* State for channel 1 */
+		float d1_2, d2_2;  /* State for channel 2 */
+		float d1_3, d2_3;  /* State for channel 3 */
+		float d1_4, d2_4;  /* State for channel 4 */
+	#endif
 #endif
 #ifdef FIXED_POINT
-    s64 d1, d2;
+	s64 d1, d2;
 #else
-    float d1, d2;
+	float d1, d2;
 #endif
 } biquad_state;
 
@@ -77,10 +84,11 @@ static inline s16 biquad_df2t_fixed(biquad_coeffs_fixed *c, s16 x, s64 *d1, s64 
 {
     s64 acc = (s64)c->b0 * x + *d1;
 
-    s16 out = (s16)(acc + 0x2000) >> 14;
+	s32 out_acc = (s32)((acc + (1 << (Q2_14_SHIFT - 1))) >> Q2_14_SHIFT);
+	s16 out = CLIP_S16(out_acc);
 
-    *d1 = (s64)c->b1 * x - (s64)c->a1 * out + *d2;
-    *d2 = (s64)c->b2 * x - (s64)c->a2 * out;
+	*d1 = (s64)c->b1 * x - (s64)c->a1 * out + *d2;
+	*d2 = (s64)c->b2 * x - (s64)c->a2 * out;
 
     return out;
 }
@@ -179,19 +187,12 @@ static inline void _biquad_allpass_filter(biquad_coeffs *res, float freq, float 
 static inline void biquad_step_vec_2ch(biquad *bq, sample_t *x1, sample_t *x2, sample_t *out1, sample_t *out2)
 {
 #ifdef FIXED_POINT
-	*x1 = (sample_t)biquad_df2t_fixed(&bq->coeff_fixed, (s16)*x1, &bq->state.d1, &bq->state.d2);
-	*x2 = (sample_t)biquad_df2t_fixed(&bq->coeff_fixed, (s16)*x2, &bq->state.d1, &bq->state.d2);
+    *x1 = (sample_t)biquad_df2t_fixed(&bq->coeff_fixed, (s16)*x1, &bq->state.d1_1, &bq->state.d2_1);
+    *x2 = (sample_t)biquad_df2t_fixed(&bq->coeff_fixed, (s16)*x2, &bq->state.d1_2, &bq->state.d2_2);
 #else
-	biquad_df2t_vec_2ch(&bq->coeff, *x1, *x2, &bq->state.d1_1, &bq->state.d2_1, &bq->state.d1_2, &bq->state.d2_2, out1, out2);
+    biquad_df2t_vec_2ch(&bq->coeff, *x1, *x2, &bq->state.d1_1, &bq->state.d2_1, &bq->state.d1_2, &bq->state.d2_2, out1, out2);
 #endif
 }
-
-#ifdef FIXED_POINT
-static inline void biquad_step_fixed(biquad *bq, sample_t *x)
-{
-	*x = (sample_t)biquad_df2t_fixed(&bq->coeff_fixed, (s16)*x, &bq->state.d1, &bq->state.d2);
-}
-#endif
 #endif
 
 static inline void biquad_step(biquad *bq, sample_t *x)
@@ -206,7 +207,7 @@ static inline void biquad_step(biquad *bq, sample_t *x)
 #ifdef FIXED_POINT
 static inline void biquad_step_fixed(biquad *bq, sample_t *x)
 {
-	*x = (sample_t)biquad_df2t_fixed(&bq->coeff_fixed, (s16)*x, &bq->state.d1, &bq->state.d2);
+    *x = (sample_t)biquad_df2t_fixed(&bq->coeff_fixed, (s16)*x, &bq->state.d1, &bq->state.d2);
 }
 #endif
 

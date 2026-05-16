@@ -112,7 +112,7 @@ static bool _read_wav_frame(fe_buffer_manager_t *mng, sample_t *frame_buffer) {
             if (items_read == 0) return false;  /* Hit EOF */
             
             #ifdef FIXED_POINT
-                frame_buffer[i] = val;  /* int16_t is already Q2.14 format */
+                frame_buffer[i] = (sample_t)(val >> 1);  /* Q1.15 -> Q2.14 */
             #else
                 float f_sample = (float)val / 32768.0f;  /* Normalize to [-1.0, 1.0] */
                 frame_buffer[i] = f_sample;
@@ -229,7 +229,8 @@ static inline void _fe_process_sample_vec_2ch(fe_manager_t *mng, sample_t in_ch1
         dc_removal_sample_process(&mng->state.dc_remov_block, out_ch2);
     }
     if (mng->config.module_flags & FE_FLAG_PRE_EMPHASIS) {
-        /* TBD */
+        pre_emphasis_sample_process(&mng->state.pre_emphasis_block, out_ch1);
+        pre_emphasis_sample_process(&mng->state.pre_emphasis_block, out_ch2);
     }
     if (mng->config.module_flags & FE_FLAG_NOISE_SUPPRESS) { 
         /* TBD */
@@ -258,10 +259,13 @@ sample_t inline _fe_process_sample(fe_manager_t *mng, sample_t in)
         dc_removal_sample_process(&mng->state.dc_remov_block, &out);
     }
     if (mng->config.module_flags & FE_FLAG_PRE_EMPHASIS) {
-        /* TBD */
+        pre_emphasis_sample_process(&mng->state.pre_emphasis_block, &out);
     }
     if (mng->config.module_flags & FE_FLAG_NOISE_SUPPRESS) { 
         /* TBD */
+    }
+    if(mng->config.module_flags & FE_FLAG_FADER) {
+
     }
     return out;
 }
