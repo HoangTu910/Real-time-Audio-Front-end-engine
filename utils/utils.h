@@ -20,6 +20,7 @@ typedef int64_t s64;
 #define FLOAT_TO_Q15(x) ((q15)((x) * 32768.0f))
 #define FLOAT_TO_Q31(x) ((q31)((x) * 2147483648.0f))
 #define FLOAT_TO_Q2_14(x) ((q31)((x) * 16384.0f))
+#define Q2_14_TO_FLOAT(x) ((float)(x) / 16384.0f)
 
 #define Q2_14_SHIFT 14
 

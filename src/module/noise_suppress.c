@@ -1,182 +1,107 @@
 #include "noise_suppress.h"
-#include <string.h>
-#include <stdlib.h>
 
-/**
- * @brief Speech-aware adaptive noise estimation with minimum tracking.
- *
- * AUDIO SIGNAL PROCESSING CONTEXT:
- * In the spectral domain (frequency bins), noise exhibits pseudo-stationary
- * characteristics while speech contains non-stationary transients. This algorithm
- * leverages this property by tracking the minimum power envelope per frequency
- * bin as a robust noise floor estimate.
- *
- * MINIMUM TRACKING PRINCIPLE (Martin 1994):
- * - Noise power ≈ minimum power observed over past N frames
- * - Speech transients create peaks above the noise floor
- * - By tracking minimums, we build a reliable noise profile
- * - Reset periodically (every ~200-300ms for 10ms frames)
- *
- * VAD-LIKE ACTIVITY DETECTION:
- * - Compares current frame energy against 1.5x noise estimate
- * - Speech frames trigger slower noise adaptation
- * - Prevents upward drift of noise estimate during speech
- *
- * Q-FORMAT NOTES:
- * - Power spectrum: Q1.31 (result of q31_t * q31_t multiplication)
- * - Gain output: Q6.9 (0 to ~512, typically 0-1 in linear)
- *
- * EMBEDDED OPTIMIZATION:
- * - No expensive division; uses fixed shifts for 1/8, 1/16
- * - Single-pass computation per frame
- * - Minimal state per channel (n_bins × 4 bytes for minimums)
- */
-
-fe_status_t noise_suppress_init(noise_suppress_state_t *state, size_t n_bins)
+void process_noise_suppression(float *input, noise_suppress_t *ns)
 {
-    RTAFE_LOG("Initializing Noise Suppressor with n_bins=%zu\n", n_bins);
-    if (state == NULL) return FE_ERR_NULL_PTR;
-
-    /* If power_min is already allocated (pre-allocated from scratch), 
-       just initialize it. Otherwise allocate it. */
-    if (state->power_min == NULL) {
-        /* Allocate minimum tracking buffer (one per bin) */
-        state->power_min = (q31_t *)malloc(n_bins * sizeof(q31_t));
-        if (state->power_min == NULL) return FE_ERR_NULL_PTR;
+    const int length = ns->frame_size_millis * ns->sample_rate / 1000; // Convert ms to samples
+    if (length <= 0) {
+        return;
     }
 
-    /* Initialize with maximum values (will be overwritten on first frames) */
-    for (size_t i = 0; i < n_bins; i++) {
-        state->power_min[i] = INT32_MAX;
+    /* Current FFT implementation supports N=512 only */
+    if (length != 512) {
+        return;
     }
 
-    state->min_track_count = 0;
-    state->total_power = 0;
+    const int N = length;
+    /* window */
+    float windowed_input[N];
+    for (int i = 0; i < N; i++) {
+        windowed_input[i] = input[i];
+    }
+    hamming_window(windowed_input, N);
 
-    return FE_OK;
+    /* Transform the noisy signal into the frequency domain using STFT */
+    complex_t Y[N];
+    for (int i = 0; i < N; i++) {
+        Y[i].real = windowed_input[i];
+        Y[i].imag = 0.0f;
+    }
+    fft(Y, N);
+
+    /* Estimate the noise spectrum N(f) from the noisy signal Y(f) */
+    /* Minimum statistics with smoothing and periodic reset */
+    static float p_smooth[512];
+    static float p_min[512];
+    static int minimum_count = 0;
+    static int noise_init = 0;
+    static int noise_len = 0;
+
+    if (!noise_init || noise_len != N) {
+        for (int i = 0; i < N; i++) {
+            p_smooth[i] = 0.0f;
+            p_min[i] = 0.0f;
+        }
+        minimum_count = 0;
+        noise_init = 1;
+        noise_len = N;
+    }
+
+    const float alpha = 0.9f;
+    const float beta = 1.0f;
+    const int minimum_power_update_interval = 50;
+
+    float noise_estimate[N];
+    for (int i = 0; i < N; i++) {
+        /* power of the noisy signal Y(f) */
+        float p_Y = Y[i].real * Y[i].real + Y[i].imag * Y[i].imag;
+
+        /* update the smoothed power estimate */
+        p_smooth[i] = alpha * p_smooth[i] + (1.0f - alpha) * p_Y;
+
+        /* update the minimum power estimate, why? Because it represents the lowest power level observed in the noise */
+        if (p_min[i] == 0.0f || p_smooth[i] < p_min[i]) {
+            p_min[i] = p_smooth[i];
+        }
+    }
+
+    /* Update the minimum power estimate periodically */
+    minimum_count++;
+    if (minimum_count >= minimum_power_update_interval) {
+        for (int i = 0; i < N; i++) {
+            p_min[i] = p_smooth[i];
+        }
+        minimum_count = 0;
+    }
+
+    for (int i = 0; i < N; i++) {
+        float noise_power = beta * p_min[i];
+        noise_estimate[i] = sqrtf(noise_power);
+    }
+
+    /* Subtract the estimated noise spectrum from the noisy spectrum to get the clean spectrum S(f) */
+    complex_t S[N];
+    for (int i = 0; i < N; i++) {
+        float Y_mag = sqrtf(Y[i].real * Y[i].real + Y[i].imag * Y[i].imag);
+        float N_mag = noise_estimate[i];
+        float S_mag = fmaxf(0.0f, Y_mag - N_mag);
+        float gain = (Y_mag > 0.0f) ? (S_mag / Y_mag) : 0.0f;
+        S[i].real = gain * Y[i].real;
+        S[i].imag = gain * Y[i].imag;   
+    }
+
+    /* Transform the clean spectrum back to the time domain using inverse STFT */
+    ifft(S, N);
+    for (int i = 0; i < N; i++) {
+        input[i] = S[i].real;
+    }
 }
 
-void noise_suppress_process(noise_suppress_state_t *state,
-                            const q31_t *fft_re,
-                            const q31_t *fft_im,
-                            q31_t       *noise_est,
-                            q15_t       *gain_out,
-                            size_t       n_bins,
-                            q15_t        over_sub,
-                            q15_t        floor,
-                            uint16_t     min_track_len)
+void process_noise_suppression_fixed(s16 *input, noise_suppress_t *ns)
 {
-    if (state == NULL || fft_re == NULL || fft_im == NULL) return;
-    
-    state->total_power = 0;
-    q31_t max_power = 0;
-
-    /* ─────────────────────────────────────────────────────────────────────
-       STEP 1: Power Spectrum Computation & Minimum Tracking
-       
-       For each frequency bin: Power[k] = |X[k]|² = Re[k]² + Im[k]²
-       Track bin-wise minimum over sliding window for noise floor.
-       ───────────────────────────────────────────────────────────────────── */
-    for (size_t i = 0; i < n_bins; i++) {
-        q31_t power = (fft_re[i] * fft_re[i]) + (fft_im[i] * fft_im[i]);
-
-        /* Track minimum over sliding window (Martin 1994) */
-        if (power < state->power_min[i]) {
-            state->power_min[i] = power;
-        }
-
-        /* Accumulate for frame energy estimation (for VAD-like decision) */
-        state->total_power += power;
-        if (power > max_power) max_power = power;
-    }
-
-    /* ─────────────────────────────────────────────────────────────────────
-       STEP 2: Energy-Based Activity Detection (Simple VAD)
-       
-       Compare frame energy against noise estimate to determine if current
-       frame contains speech transients. This prevents noise floor from
-       drifting upward during speech bursts (Sohn et al. 1999).
-       ───────────────────────────────────────────────────────────────────── */
-    q31_t avg_power = state->total_power / n_bins;
-    q31_t noise_estimate_avg = 0;
-    for (size_t i = 0; i < n_bins; i++) {
-        noise_estimate_avg += noise_est[i];
-    }
-    noise_estimate_avg /= n_bins;
-
-    /* Activity threshold: if avg power > 1.5x noise estimate, likely speech
-       (Both average and peak must exceed threshold to avoid false positives) */
-    q31_t activity_threshold = (noise_estimate_avg * 3) >> 1;  /* 1.5x via bit shift */
-    int is_speech_frame = (avg_power > activity_threshold) && (max_power > activity_threshold);
-
-    /* ─────────────────────────────────────────────────────────────────────
-       STEP 3: Adaptive Noise Estimate Update
-       
-       Use two time constants:
-       - Silence frames: α = 1/8 (fast adaptation to changing noise)
-       - Speech frames: α = 1/16 (slow adaptation, preserve noise floor)
-       
-       Blend minimum estimate (short-term floor) with current estimate
-       (long-term drift tracking) for smooth convergence.
-       ───────────────────────────────────────────────────────────────────── */
-    q15_t alpha_num, alpha_den;
-    if (is_speech_frame) {
-        alpha_num = 1;      /* 1/16 = 0.0625 (slower) */
-        alpha_den = 16;
-    } else {
-        alpha_num = 1;      /* 1/8 = 0.125 (faster) */
-        alpha_den = 8;
-    }
-
-    for (size_t i = 0; i < n_bins; i++) {
-        q31_t power = (fft_re[i] * fft_re[i]) + (fft_im[i] * fft_im[i]);
-
-        /* Use minimum estimate as base for better noise floor tracking */
-        q31_t min_est = state->power_min[i];
-
-        /* Blend minimum estimate with current noise estimate:
-           - min_est tracks short-term floor (reliable during speech)
-           - noise_est[i] tracks long-term changes (slow background changes)
-           - Average provides smooth balance */
-        q31_t blended = (min_est + noise_est[i]) >> 1;
-
-        /* Update with adaptive smoothing:
-           noise_est[i] = 7/8 * noise_est[i] + 1/8 * blended
-           (Avoids tracking speech spikes as noise) */
-        noise_est[i] = noise_est[i] - (noise_est[i] >> 3)  /* 7/8 * old */
-                       + (blended >> 3);                    /* 1/8 * blended */
-
-        /* ─────────────────────────────────────────────────────────────────
-           STEP 4: Spectral Subtraction Gain Computation
-           
-           Implements: Gain[k] = (Power[k] - α·NoiseEst[k]) / Power[k]
-           where α = over_sub (over-subtraction factor, typically 1.0-1.5)
-           
-           Bounded by spectral floor to prevent over-attenuation.
-           Output format Q6.9: 512 represents unity gain (no suppression).
-           ───────────────────────────────────────────────────────────────── */
-        q15_t gain = 0;
-        if (power > floor) {
-            q31_t numerator = power - ((over_sub * noise_est[i]) >> 9);
-            if (numerator < floor) numerator = floor;
-            gain = (q15_t)((numerator << 9) / (power + 1)); /* Q6.9 */
-        }
-        gain_out[i] = gain;
-    }
-
-    /* ─────────────────────────────────────────────────────────────────────
-       STEP 5: Periodic Minimum Tracker Reset
-       
-       Every min_track_len frames (~200ms if frame=10ms, min_track_len=20),
-       reset minimums to restart minimum search. This allows noise estimate
-       to adapt to slowly changing acoustic environment.
-       ───────────────────────────────────────────────────────────────────── */
-    state->min_track_count++;
-    if (state->min_track_count >= min_track_len) {
-        /* Reset minimums for next tracking window */
-        for (size_t i = 0; i < n_bins; i++) {
-            state->power_min[i] = INT32_MAX;
-        }
-        state->min_track_count = 0;
+    const int length = ns->frame_size_millis * ns->sample_rate / 1000; // Convert ms to samples
+    /* Similar to the floating-point version but using fixed-point arithmetic */
+    /* This is a placeholder implementation and should be replaced with actual fixed-point processing */
+    for (int i = 0; i < length; i++) {
+        input[i] = input[i]; // No processing, just copy input to output
     }
 }

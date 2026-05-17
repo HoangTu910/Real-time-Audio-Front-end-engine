@@ -1,73 +1,63 @@
 /**
- * @file noise_suppress.h
- * @brief Spectral noise suppression with speech-aware adaptive noise estimation.
- *
- * AUDIO APPLICATION: Speech enhancement via spectral subtraction with adaptive
- * noise floor estimation. Designed for real-time embedded audio DSP systems.
- *
- * ALGORITHM BASIS:
- * - Minimum-tracking noise estimation (Martin 1994, Sohn et al. 1999)
- * - Speech-aware smoothing to avoid tracking speech transients
- * - Energy-based voice activity detection (VAD-like)
- * - Fixed-point arithmetic for ARM Cortex-M, RISC-V, and DSP cores
- *
- * REFERENCES:
- * [1] Martin, R. (1994). "Noise power spectral density estimation based on
- *     optimal smoothing and minimum statistics." IEEE Trans. Speech Audio Process.
- * [2] Sohn, J., Kim, N. S., & Legall, W. (1999). "A statistical model-based voice
- *     activity detection." IEEE Trans. Speech Audio Process., 7(4), 467-474.
- * [3] Dabov, K., Foi, A., & Katkovnik, V. (2011). "Audio denoising by time-
- *     frequency block thresholding." In Audio Signal Processing for Next-Generation
- *     Multimedia Communication (pp. 297-326).
- *
- * SUITABLE FOR:
- * - Real-time audio processing on embedded devices (< 50ms latency)
- * - Microphone array beamforming post-processing
- * - Voice communication (VoIP, telephony) noise reduction
- * - Audio recording cleanup
- */
-#pragma once
+ * basic model of noise suppresion
+ * x[n] = s[n] + noise[n]
+ * x[n]: noisy signal
+ * s[n]: clean signal
+ * noise[n]: noise signal
+ * 
+ * We want to find s^[n] = estimate of s[n]
+ * 
+ * Linear filtering is a common approach to noise suppresion:
+ * s^[n] = h[k] * x[n-k]  (convolution)
+ * -> find h[k] that minimizes the mean squared error between s^[n] and s[n]
+ * 
+ * Spectral subtraction is another approach:
+ * Given noisy signal as y[n], we have
+ * y[n] = s[n] + d[n]
+ * After applying STFT, we have
+ * Y(f) = S(f) + D(f)
+ * if we can estimate D(f), we can get S(f) = Y(f) - D(f) -> this is the basic idea of spectral subtraction
+ * 
+ * In STFT we have
+ * |S(f)|^2 = |X(f)|^2 - |N(f)|^2
+ * where S(f) is the clean signal spectrum, X(f) is the noisy signal spectrum, and N(f) is the noise spectrum
+ * or
+ * |S(f)| = max(0, |X(f)| - |N(f)|)
+ * -> we have to estimate the noise spectrum N(f) and subtract it from the noisy spectrum X(f) to get the clean spectrum S(f)
+ * 
+ * Step to implement noise suppression:
+ * 1. Transform the noisy signal into the frequency domain using STFT
+ * -> y[n] -> Y(f)
+ * 2. Estimate the noise spectrum N(f) from the noisy signal Y(f)
+ * -> There are various methods to estimate the noise spectrum
+ * 3. Subtract the estimated noise spectrum from the noisy spectrum to get the clean spectrum S(f)
+ * -> S(f) = Y(f) - N(f)
+ * -> We have 2 options: magnitude subtraction or power subtraction
+ * -> Magnitude subtraction: |S(f)| = max(0, |Y(f)| - |N(f)|)
+ * -> Power subtraction: |S(f)|^2 = max(0, |Y(f)|^2 - |N(f)|^2)
+ * 4. Half-wave rectify the result to ensure non-negativity
+ * -> S(f) = max(|S(f)|, beta|Y(f)|) where beta is a small positive constant to prevent musical noise
+ * 5. Transform the clean spectrum back to the time domain using inverse STFT
+ * -> S(f) -> s^[n]
+ * 
+ * Spectral subtraction can be rewrite as:
+ * S(f) = G(f) * Y(f)
+ * where G(f) is the gain function defined as:
+ * G(f) = max(beta, 1 - alpha (|N(f)|^2 / |Y(f)|^2)) for power subtraction
+ * G(f) = max(beta, 1 - alpha (|N(f)| / |Y(f)|)) for magnitude subtraction
+ * N(f) is the estimated noise spectrum, Y(f) is the noisy spectrum, 
+ * alpha is the over-subtraction factor, and beta is the spectral floor to prevent musical noise */
+ 
+#ifndef NOISE_SUPPRESS_H
+#define NOISE_SUPPRESS_H
+#include "fft.h"
 
-#include "rtafe/fe_types.h"
-
-/**
- * Noise suppression state for speech-aware adaptive estimation.
- * Maintains minimal state for embedded devices.
- */
 typedef struct {
-    q31_t *power_min;         /**< Minimum power estimate per bin */
-    uint16_t min_track_count; /**< Frame counter for minimum tracking */
-    q31_t total_power;        /**< Total frame power for VAD-like decision */
-} noise_suppress_state_t;
+    u32 sample_rate;
+    u32 frame_size_millis;
+} noise_suppress_t;
 
-/**
- * Initialize noise suppression state.
- * @param state       State structure to initialize
- * @param n_bins      Number of frequency bins
- * @return FE_OK on success, FE_ERR_NULL_PTR if state is NULL
- */
-fe_status_t noise_suppress_init(noise_suppress_state_t *state, size_t n_bins);
+void process_noise_suppression(float *input, noise_suppress_t *ns);
+void process_noise_suppression_fixed(s16 *input, noise_suppress_t *ns);
 
-/**
- * Update noise estimate and compute spectral suppression gain.
- * Uses speech-aware adaptive tracking for better embedded performance.
- *
- * @param state       Noise suppression state (maintains tracking statistics)
- * @param fft_re      Real FFT values
- * @param fft_im      Imaginary FFT values
- * @param noise_est   Running noise estimate (n_bins, updated in-place)
- * @param gain_out    Output suppression gain per bin (Q6.9)
- * @param n_bins      Number of frequency bins
- * @param over_sub    Over-subtraction factor (Q6.9)
- * @param floor       Spectral floor minimum
- * @param min_track_len  Minimum tracking window length (frames) - suggest 15-25
- */
-void noise_suppress_process(noise_suppress_state_t *state,
-                            const q31_t *fft_re,
-                            const q31_t *fft_im,
-                            q31_t       *noise_est,
-                            q15_t       *gain_out,
-                            size_t       n_bins,
-                            q15_t        over_sub,
-                            q15_t        floor,
-                            uint16_t     min_track_len);
+#endif

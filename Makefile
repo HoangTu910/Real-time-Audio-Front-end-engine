@@ -60,7 +60,7 @@ TEST_SRCS = $(wildcard $(TEST_DIR)/*.c)
 TEST_BINS = $(patsubst $(TEST_DIR)/%.c, $(BIN_DIR)/%, $(TEST_SRCS))
 
 # Core library source files needed for tests
-FE_CORE_SRCS = src/fe_api.c src/module/dc_removal.c src/biquad/biquad.c
+FE_CORE_SRCS = src/fe_api.c src/module/dc_removal.c src/biquad/biquad.c src/module/fft.c src/module/noise_suppress.c
 
 $(BIN_DIR):
 	@mkdir -p $(BIN_DIR)
@@ -74,6 +74,10 @@ $(BIN_DIR)/%: $(TEST_DIR)/%.c $(FE_CORE_SRCS) | $(BIN_DIR)
 $(BIN_DIR)/arm_%: $(TEST_DIR)/%.c $(FE_CORE_SRCS) | $(BIN_DIR)
 	@echo "Compiling ARM $<..."
 	@$(CC_ARM) $(CFLAGS_ARM) $< $(FE_CORE_SRCS) -o $@ $(LDFLAGS_ARM)
+
+test_fft: $(BIN_DIR)/test_fft
+	@echo "Running test_fft..."
+	@./$(BIN_DIR)/test_fft
 
 test_sincos: $(BIN_DIR)/test_sincos
 	@echo "Running test_sincos..."

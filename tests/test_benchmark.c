@@ -1,9 +1,9 @@
 #include "biquad/biquad.h"
 #include "fe_api.h"
 
-#define TEST_WAV_FILE "tests/chirp_stereo.wav"
-#define OUTPUT_WAV_FILE "tests/chirp_processed.wav"
-#define FRAME_SIZE_MS 5           /* Process 5ms frames */
+#define TEST_WAV_FILE "tests/noise.wav"
+#define OUTPUT_WAV_FILE "tests/noise_processed.wav"
+#define FRAME_SIZE_MS 5 /* Process 5ms frames */
 
 #include <stdio.h>
 
@@ -12,7 +12,7 @@ int main() {
         .input_wav_file = TEST_WAV_FILE,
         .output_wav_file = OUTPUT_WAV_FILE,
         .frame_size_millis = FRAME_SIZE_MS,
-        .module_flags = FE_FLAG_DC_REMOVAL | FE_FLAG_PRE_EMPHASIS  /* Enable the processing modules you want to benchmark */
+        .module_flags = FE_FLAG_PRE_EMPHASIS | FE_FLAG_NOISE_SUPPRESS /* Enable the processing modules you want to benchmark */
     };
     en_fe result = fe_init(&init);
     if (result != FE_ERROR_NONE) {

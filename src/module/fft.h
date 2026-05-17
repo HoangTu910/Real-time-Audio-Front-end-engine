@@ -1,22 +1,45 @@
-/* fft.h — Fixed-point radix-2 DIT FFT with block scaling */
+#ifndef FFT_H
+#define FFT_H
 
-#pragma once
 #include <stdint.h>
-#include "rtafe/fe_types.h"
+#include <math.h>
+#include "utils.h"
 
-/**
- * In-place radix-2 decimation-in-time FFT (fixed-point Q1.31).
- *
- * @param re        Real part array, length @p n. Modified in-place.
- * @param im        Imaginary part array, length @p n. Modified in-place.
- *                  (zero-fill for real-only input)
- * @param n         FFT length (must be power of 2, e.g. 256).
- * @param tw_cos    Precomputed cosine twiddles (Q1.31), length n/2.
- * @param tw_sin    Precomputed sine twiddles (Q1.31), length n/2.
- * @return          Number of block-scaling right-shifts applied (for
- *                  headroom tracking in downstream stages).
- *
- * No dynamic allocation. Operates entirely in the provided arrays.
- */
-int fft_radix2_q31(q31_t *re, q31_t *im, size_t n,
-                   const q31_t *tw_cos, const q31_t *tw_sin);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct {
+    float real;
+    float imag;
+} complex_t;
+
+typedef s16 q2_14;
+
+typedef struct {
+    q2_14 real;
+    q2_14 imag;
+} complex_fixed_t;
+
+/* floating point */
+void fft(complex_t *x, int N);
+void ifft(complex_t *x, int N);
+
+/* fixed point */
+int fft_fixed(complex_fixed_t *x, int N);
+void ifft_fixed(complex_fixed_t *x, int N);
+
+
+/* fixed point but use block floating point */
+int fft_fixed_bfp(complex_fixed_t *x, int N, int *scale_shift);
+int ifft_fixed_bfp(complex_fixed_t *x, int N, int *scale_shift);
+
+/* window */
+void hamming_window(float *x, int N);
+void hanning_window(float *x, int N);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* FFT_H */

@@ -8,6 +8,7 @@
 #include "biquad/biquad.h"
 #include "buffer_mng.h"
 #include "module/preemphasis.h"
+#include "module/noise_suppress.h"
 #include "utils.h"
 #include "errors_code.h"
 
@@ -39,6 +40,7 @@ typedef struct fe_state_t {
     dc_remov dc_remov_block;          /**< DC removal state (per channel) */
     biquad biquad_block;              /**< Biquad filter state (per channel) */
     pre_emphasis pre_emphasis_block;  /**< Pre-emphasis state (per channel) */
+    noise_suppress_t noise_suppress_block; /**< Noise suppression state (per channel) */
 } fe_state_t;
 
 typedef struct fe_audio_info_t {

@@ -311,6 +311,10 @@ void fe_process_frame(fe_manager_t *mng)
     for (int i = 0; i < num_samples; i++) {
         output[i] = _fe_process_sample(mng, input[i]);
     }
+    
+    if(mng->config.module_flags & FE_FLAG_NOISE_SUPPRESS) {
+        process_noise_suppression(output, &mng->state.noise_suppress_block);
+    }
     #endif
 
     mng->buffer_mng.samples_read += frame_size;
