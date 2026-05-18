@@ -49,8 +49,9 @@ X(k) = Y(k) - D(k)
 
 The problem is how to find *D(k)*, there are also several ways to estimate the noise signal, in this project, I used **Minimal Statistic** method to estimate *D(k)* (I will update about it if I have time).
 
-The current result:
-![Noisy Signal](image-2.png)
+<img width="1908" height="306" alt="Noisy Signal" src="https://github.com/user-attachments/assets/e8bb9a77-0568-4f90-b2c0-b003499987a1" />
 
-![Processed Signal](image-3.png)
+<img width="1908" height="306" alt="Processed Signal" src="https://github.com/user-attachments/assets/0335db42-b914-42a8-880e-b4e64677d792" />
+
+
 
