@@ -2,7 +2,7 @@
 
 #define TEST_WAV_FILE "tests/test_signal_mono.wav"
 #define OUTPUT_WAV_FILE "tests/test_signal_mono_processed.wav"
-#define FRAME_SIZE_MS 5           /* Process 5ms frames */
+#define FRAME_SIZE_SAMPLES 512           /* Process 512-sample frames */
 
 /* This would be a good skeleton for anyone who wants to use the frame processing functions */
 
@@ -11,7 +11,8 @@ int main() {
     fe_init_t init = {
         .input_wav_file = TEST_WAV_FILE,
         .output_wav_file = OUTPUT_WAV_FILE,
-        .frame_size_millis = FRAME_SIZE_MS
+        .frame_size_samples = FRAME_SIZE_SAMPLES,
+        .overlap_percentage = 0  /* 0 = no overlap, 50 = 50% overlap, etc. */
     };
     
     /* and call below init function */

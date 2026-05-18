@@ -242,11 +242,6 @@ sample_t inline _fe_process_sample(fe_manager_t *mng, sample_t in)
 {
     sample_t out = in;
     /* TBD */
-    #ifdef FIXED_POINT
-        biquad_step_fixed(&mng->state.biquad_block, &out);
-    #else
-        biquad_step(&mng->state.biquad_block, &out);
-    #endif
     if(mng->config.module_flags & FE_FLAG_FILTER) {
         /* TBD */
         #ifdef FIXED_POINT
@@ -311,11 +306,56 @@ void fe_process_frame(fe_manager_t *mng)
     for (int i = 0; i < num_samples; i++) {
         output[i] = _fe_process_sample(mng, input[i]);
     }
-    
-    if(mng->config.module_flags & FE_FLAG_NOISE_SUPPRESS) {
-        process_noise_suppression(output, &mng->state.noise_suppress_block);
-    }
     #endif
+
+    if(mng->config.module_flags & FE_FLAG_NOISE_SUPPRESS) {
+        #ifdef FIXED_POINT
+        process_noise_suppression_fixed((s16 *)output, &mng->state.noise_suppress_block);
+        #else
+        process_noise_suppression((float *)output, &mng->state.noise_suppress_block);
+        #endif
+    }
+    
+    /* Apply overlap-add if enabled */
+    if (mng->config.overlap_percentage > 0 && mng->ola_initialized) {
+        int overlap_size = (frame_size * mng->config.overlap_percentage) / 100;
+        
+        /* Apply synthesis window to output */
+        /**
+         * Synthesis window is a method to smooth the transitions between frames in overlap-add processing.
+         * Currently, the synthesis window is Hann window.
+         */
+        #ifdef FIXED_POINT
+        /* for now, this fixed-point is not working properly */
+        for (int i = 0; i < frame_size; i++) {
+            output[i] = (sample_t)((output[i] * mng->synthesis_window[i]) >> 14);
+        }
+        #else
+        for (int i = 0; i < frame_size; i++) {
+            output[i] = (sample_t)(output[i] * mng->synthesis_window[i]);
+        }
+        #endif
+        
+        /* Overlap-add: combine overlap buffer with first part of output */
+        /* OPT_MARK: can we vectorize this to make it run faster?*/
+        for (int ch = 0; ch < num_channels; ch++) {
+            for (int i = 0; i < overlap_size; i++) {
+                int out_idx = i * num_channels + ch;
+                int overlap_idx = i * num_channels + ch;
+
+                /**
+                 * in case you wonder, two samples are added together in the overlapping region to create a smooth transition between frames.
+                 * The output sample is the sum of the current frame's sample and the overlapping tail from the previous frame.
+                 */
+                output[out_idx] = (sample_t)(output[out_idx] + mng->overlap_buffer[overlap_idx]);
+            }
+        }
+        
+        /* Save tail (last overlap_size samples) to overlap buffer for next frame */
+        for (int i = 0; i < overlap_size * num_channels; i++) {
+            mng->overlap_buffer[i] = output[(frame_size - overlap_size) * num_channels + i];
+        }
+    }
 
     mng->buffer_mng.samples_read += frame_size;
 }
@@ -335,6 +375,14 @@ void fe_init_frame_size(fe_manager_t *mng, u32 frame_size_samples)
         return;
     }
     mng->buffer_mng.frame_size = frame_size_samples;
+    
+    /* Calculate hop size from overlap percentage */
+    u32 hop_size = (frame_size_samples * (100 - mng->config.overlap_percentage)) / 100;
+    if (hop_size == 0) hop_size = frame_size_samples;  /* Fallback if overlap is 100% */
+    mng->buffer_mng.hop_size = hop_size;
+    
+    FE_LOG("Frame size: %u samples, Overlap: %u%%, Hop size: %u samples\n",
+            frame_size_samples, mng->config.overlap_percentage, hop_size);
 }
 
 void fe_start_frame_streaming(fe_manager_t *mng)
@@ -368,11 +416,53 @@ void fe_start_frame_streaming(fe_manager_t *mng)
         allocate_deinterleave_buffer(mng, mng->deinterleave_buffer.buffer_channel_3);
         allocate_deinterleave_buffer(mng, mng->deinterleave_buffer.buffer_channel_4);
     }
+    
+    /* Initialize overlap-add buffers and windows if overlap is enabled */
+    if (mng->config.overlap_percentage > 0) {
+        u32 frame_size = mng->buffer_mng.frame_size;
+        mng->buffer_mng.overlap_size = (frame_size * mng->config.overlap_percentage) / 100;
+        
+        /* Allocate overlap buffer (stores tail from previous frame) */
+        allocate_overlap_buffer(mng, mng->overlap_buffer);
+        
+        /* Initialize overlap buffer to zero */
+        for (u32 i = 0; i < mng->buffer_mng.overlap_size; i++) {
+            mng->overlap_buffer[i] = 0.0f;
+        }
+        
+        /* Allocate analysis and synthesis windows */
+        allocate_frame_buffer(mng, mng->analysis_window);
+        allocate_frame_buffer(mng, mng->synthesis_window);
+        
+        if (!mng->analysis_window || !mng->synthesis_window) {
+            FE_ERROR("Failed to allocate window buffers\n");
+            return;
+        }
+        
+        /* Generate Hann window for both analysis and synthesis (ideal for 50% overlap) */
+        for (u32 n = 0; n < frame_size; n++) {
+            sincos sc = fast_sine_cos(2.0f * M_PI * n / (frame_size - 1));
+            float hann = 0.5f * (1.0f - sc.cos);
+            mng->analysis_window[n] = (sample_t)hann;
+            mng->synthesis_window[n] = (sample_t)hann;
+        }
+        
+        mng->ola_initialized = 1;
+        
+        FE_LOG("OLA initialized: overlap_size=%u, window type=Hann\n", mng->buffer_mng.overlap_size);
+    }
 
     /* Track memory usage */
     mng->mem_stats.input_buffer_bytes = mng->buffer_mng.frame_size * num_channels * sizeof(sample_t);
     mng->mem_stats.output_buffer_bytes = mng->buffer_mng.frame_size * num_channels * sizeof(sample_t);
     mng->mem_stats.total_allocated = mng->mem_stats.input_buffer_bytes + mng->mem_stats.output_buffer_bytes;
+    
+    if (mng->config.overlap_percentage > 0) {
+        u32 overlap_size = (mng->buffer_mng.frame_size * mng->config.overlap_percentage) / 100;
+        mng->mem_stats.total_allocated += overlap_size * sizeof(sample_t);  /* overlap buffer */
+        mng->mem_stats.total_allocated += 2 * mng->buffer_mng.frame_size * sizeof(sample_t);  /* windows */
+    }
+    
     mng->mem_stats.peak_usage = mng->mem_stats.total_allocated;
 
     FE_LOG("Frame streaming initialized: %u samples/frame, %u channels\n", 
@@ -403,6 +493,16 @@ void fe_stop_frame_streaming(fe_manager_t *mng)
     if (mng->deinterleave_buffer.buffer_channel_4) {
         free_processed_buffer(mng->deinterleave_buffer.buffer_channel_4);
     }
+    if (mng->overlap_buffer) {
+        free_processed_buffer(mng->overlap_buffer);
+    }
+    if (mng->analysis_window) {
+       free_processed_buffer(mng->analysis_window);
+    }
+    if (mng->synthesis_window) {
+        free_processed_buffer(mng->synthesis_window);
+    }
+    
     FE_LOG("Frame streaming stopped and buffers freed\n");
 }
 
@@ -520,12 +620,25 @@ void inline fe_report_memory_usage(const fe_manager_t *mng)
 en_fe fe_init(fe_init_t *init)
 {
     init->mng = (fe_manager_t *)malloc(sizeof(fe_manager_t));
-    if (!init || !init->input_wav_file || !init->output_wav_file || init->frame_size_millis == 0) {
+    if (!init || !init->input_wav_file || !init->output_wav_file || init->frame_size_samples == 0) {
         FE_ERROR("Invalid initialization parameters\n");
         return FE_ERROR_INVALID_PARAM;
     }
-    FE_LOG("Initializing frontend with input: %s, output: %s, frame size: %u ms\n", 
-            init->input_wav_file, init->output_wav_file, init->frame_size_millis);
+    
+    /* Initialize new OLA fields to NULL/0 */
+    init->mng->overlap_buffer = NULL;
+    init->mng->analysis_window = NULL;
+    init->mng->synthesis_window = NULL;
+    init->mng->ola_initialized = 0;
+    
+    /* Validate overlap percentage */
+    if (init->overlap_percentage > 100) {
+        FE_WARN("Overlap percentage clamped to 100%% (unstable above ~75%%)\n");
+        init->overlap_percentage = 100;
+    }
+    
+    FE_LOG("Initializing frontend with input: %s, output: %s, frame size: %u samples, overlap: %u%%\n", 
+            init->input_wav_file, init->output_wav_file, init->frame_size_samples, init->overlap_percentage);
 
     /* Step 1: Parse WAV header and initialize audio info */
     fe_init_audio_info(init->mng, init->input_wav_file);
@@ -544,10 +657,10 @@ en_fe fe_init(fe_init_t *init)
     FE_LOG("Output WAV file initialized: %s\n", init->output_wav_file);
 
     init->mng->config.module_flags = init->module_flags;
+    init->mng->config.overlap_percentage = init->overlap_percentage;
 
-    /* Step 2: Set default frame size (can be overridden later) */
-    u32 default_frame_size = (init->mng->audio_info.sample_rate * init->frame_size_millis) / 1000;
-    fe_init_frame_size(init->mng, default_frame_size);
+    /* Step 2: Set frame size (which calculates hop_size based on overlap) */
+    fe_init_frame_size(init->mng, init->frame_size_samples);
 
     /* Step 3: Start frame streaming (open file, allocate buffers) */
     fe_start_frame_streaming(init->mng);

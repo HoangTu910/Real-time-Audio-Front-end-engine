@@ -2,28 +2,34 @@
 
 void process_noise_suppression(float *input, noise_suppress_t *ns)
 {
-    const int length = ns->frame_size_millis * ns->sample_rate / 1000; // Convert ms to samples
+    const int length = (int)ns->frame_size_samples;
     if (length <= 0) {
+        #ifndef RELEASE_BUILD
+        printf("Invalid frame size calculated for noise suppression: %d samples. Skipping noise suppression for this frame.\n", length);
+        #endif
+
         return;
     }
 
     /* Current FFT implementation supports N=512 only */
     if (length != 512) {
+        #ifndef RELEASE_BUILD
+        printf("Noise suppression currently only supports frame size of 512 samples, but got %d samples. Skipping noise suppression for this frame.\n", length);
+        #endif
+
         return;
     }
 
     const int N = length;
-    /* window */
-    float windowed_input[N];
-    for (int i = 0; i < N; i++) {
-        windowed_input[i] = input[i];
-    }
-    hamming_window(windowed_input, N);
-
-    /* Transform the noisy signal into the frequency domain using STFT */
+    /* NOTE: When system-wide OLA is active (in fe_api.c), the Hann window is applied at the frame level.
+     * Here we apply FFT to the raw signal without windowing (rectangular window).
+     * This allows system OLA to handle all windowing for consistent STFT reconstruction.
+     */
+    
+    /* Transform the noisy signal into the frequency domain using STFT (no windowing) */
     complex_t Y[N];
     for (int i = 0; i < N; i++) {
-        Y[i].real = windowed_input[i];
+        Y[i].real = input[i];
         Y[i].imag = 0.0f;
     }
     fft(Y, N);
@@ -98,7 +104,7 @@ void process_noise_suppression(float *input, noise_suppress_t *ns)
 
 void process_noise_suppression_fixed(s16 *input, noise_suppress_t *ns)
 {
-    const int length = ns->frame_size_millis * ns->sample_rate / 1000; // Convert ms to samples
+    const int length = (int)ns->frame_size_samples;
     /* Similar to the floating-point version but using fixed-point arithmetic */
     /* This is a placeholder implementation and should be replaced with actual fixed-point processing */
     for (int i = 0; i < length; i++) {

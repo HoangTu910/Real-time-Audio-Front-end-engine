@@ -33,7 +33,7 @@ for arg in "$@"; do
 done
 
 INC_DIRS="-Iinclude -Isrc -Iutils -Isrc/biquad"
-SRCS="tests/test_benchmark.c src/fe_api.c src/module/dc_removal.c src/biquad/biquad.c"
+SRCS="tests/test_benchmark.c src/fe_api.c src/module/dc_removal.c src/biquad/biquad.c src/module/fft.c src/module/noise_suppress.c"
 
 case "$OPT" in
     default)

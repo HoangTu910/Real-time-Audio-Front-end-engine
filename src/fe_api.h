@@ -34,6 +34,7 @@ typedef struct fe_config_t {
     u32 sample_rate;        /**< Sampling rate in Hz (e.g., 16000) */
     u16 module_flags;        /**< Bitfield for module enable/disable (e.g., noise suppression) */
     size_t num_samples;     /**< Total number of samples in the input buffer */
+    u16 overlap_percentage; /**< Frame overlap percentage: 0=no overlap, 50=50% overlap, etc. */
 } fe_config_t;
 
 typedef struct fe_state_t {
@@ -63,7 +64,9 @@ typedef struct fe_audio_deinterleave_buffer {
 typedef struct fe_buffer_manager_t {
     FILE *file;           /**< File pointer for the audio file (stays open during processing) */
     fe_audio_info_t info; /**< Audio format information */
-    u32 frame_size;       /**< Number of samples per frame (e.g., 128 for 5ms @ 16kHz) */
+    u32 frame_size;       /**< Number of samples per frame (e.g., 512) */
+    u32 hop_size;         /**< Hop size = frame_size * (100 - overlap_percentage) / 100 */
+    u32 overlap_size;     /**< Size of the overlap between frames */
     u32 total_samples;    /**< Total number of samples in the audio file */
     u32 samples_read;     /**< Samples already read/processed (track progress) */
     bool eof_reached;     /**< Flag: true when all samples processed */
@@ -86,14 +89,21 @@ typedef struct fe_manager_t {
     fe_memory_stats_t mem_stats;    /**< Memory usage tracking */
     fe_audio_file_ptr_t output_wav_file; /**< File pointer for output WAV file */
     fe_audio_deinterleave_buffer deinterleave_buffer;
+    
+    /* Overlap-Add state */
+    sample_t *overlap_buffer;   /**< Buffer to store overlapping tail from previous frame */
+    sample_t *analysis_window;     /**< Analysis window (e.g., Hann) */
+    sample_t *synthesis_window;    /**< Synthesis window for OLA reconstruction */
+    bool ola_initialized;       /**< Flag: OLA state initialized */
 } fe_manager_t;
 
 typedef struct fe_init_t {
     fe_manager_t *mng;
     fe_audio_file_name_t input_wav_file;
     fe_audio_file_name_t output_wav_file;
-    u32 frame_size_millis;  /**< Desired frame size in milliseconds (e.g., 5 for 5ms frames) */
-    u16 module_flags;    /**< Bitfield to specify which processing modules to enable */ 
+    u32 frame_size_samples;  /**< Desired frame size in samples (e.g., 512) */
+    u16 module_flags;    /**< Bitfield to specify which processing modules to enable */
+    u16 overlap_percentage; /**< Frame overlap: 0 (none), 25, 50, 75 (max ~75% for stability) */ 
 } fe_init_t;
 
 /* function declarations look like a mess lmao, need to cleanup this later :D */

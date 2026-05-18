@@ -50,11 +50,12 @@
  
 #ifndef NOISE_SUPPRESS_H
 #define NOISE_SUPPRESS_H
+#include <stdio.h>
 #include "fft.h"
 
 typedef struct {
     u32 sample_rate;
-    u32 frame_size_millis;
+    u32 frame_size_samples;
 } noise_suppress_t;
 
 void process_noise_suppression(float *input, noise_suppress_t *ns);
