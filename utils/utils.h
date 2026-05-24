@@ -13,13 +13,12 @@ typedef int16_t s16;
 typedef int8_t s8;
 typedef uint64_t u64;
 typedef int64_t s64;
+typedef s32 tFixedPoint;
+typedef float tFloatingPoint;
 
-#define q15 int16_t
-#define q31 int32_t
-
-#define FLOAT_TO_Q15(x) ((q15)((x) * 32768.0f))
-#define FLOAT_TO_Q31(x) ((q31)((x) * 2147483648.0f))
-#define FLOAT_TO_Q2_14(x) ((q31)((x) * 16384.0f))
+#define FLOAT_TO_Q15(x) ((s16)((x) * 32768.0f))
+#define FLOAT_TO_Q31(x) ((s32)((x) * 2147483648.0f))
+#define FLOAT_TO_Q2_14(x) ((s32)((x) * 16384.0f))
 #define Q2_14_TO_FLOAT(x) ((float)(x) / 16384.0f)
 
 #define Q2_14_SHIFT 14

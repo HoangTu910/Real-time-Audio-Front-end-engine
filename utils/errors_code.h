@@ -1,7 +1,7 @@
 #ifndef FE_ERRORS_CODE_H
 #define FE_ERRORS_CODE_H
 
-typedef enum en_fe {
+typedef enum EN_FE {
     FE_ERROR_NONE = 0,
     FE_ERROR_INVALID_PARAM,
     FE_ERROR_FILE_IO,
@@ -10,6 +10,6 @@ typedef enum en_fe {
     FE_ERROR_PROCESSING,
     FE_ERROR_INIT_AUDIO_INPUT_FAILED,
     FE_ERROR_INIT_AUDIO_OUTPUT_FAILED
-} en_fe;
+} EN_FE;
 
 #endif /* FE_ERRORS_CODE_H */   
