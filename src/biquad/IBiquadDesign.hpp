@@ -2,6 +2,7 @@
 #define BIQUAD_H
 
 #include "utils.h"
+#include "BufferMng.hpp"
 
 typedef enum {
     BIQUAD_LPF,
@@ -36,7 +37,7 @@ class IBiquadDesign {
 public:
     virtual ~IBiquadDesign() = default;
     virtual void vDesign(float frequency, float QFactor, float sampleRate) = 0;
-    virtual void vProcessBlock(float* inputBlock, size_t numSamples);
+    virtual void vProcessBlock(TrplBufferStr *pProcessBuf);
     virtual void vProcessBlockFix(s32* inputBlock, size_t numSamples);
 protected:
     BiquadCoeffs m_biquadCoeffs;
