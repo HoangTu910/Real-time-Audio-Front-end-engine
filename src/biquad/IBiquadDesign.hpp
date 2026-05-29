@@ -38,7 +38,7 @@ public:
     virtual ~IBiquadDesign() = default;
     virtual void vDesign(float frequency, float QFactor, float sampleRate) = 0;
     virtual void vProcessBlock(TrplBufferStr *pProcessBuf);
-    virtual void vProcessBlockFix(s32* inputBlock, size_t numSamples);
+    virtual void vProcessBlockFix(TrplBufferStr *pProcessBuf);
 protected:
     BiquadCoeffs m_biquadCoeffs;
     BiquadState m_biquadState;

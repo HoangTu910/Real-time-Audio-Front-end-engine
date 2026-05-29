@@ -3,7 +3,13 @@
 
 #include "BufferMng.hpp"
 #include "BiquadFilter.hpp"
+#include "pre-emphasis.hpp"
+#include "IDSPModule.hpp"
+#include "dc_removal.hpp"
+#include "noise_suppress.hpp"
 #include "utils.h"
+
+typedef sample_t tSample;
 
 /* signal processing pipeline */
 class BiquadLPF;
@@ -12,8 +18,25 @@ class BiquadPeak;
 class BiquadBPF;
 class BiquadNotch;
 class BiquadAllpass;
+class PreEmphasis;
+class DCRemoval;
+class NoiseSuppress;
+class BufferMng;
 
 class RTAFE_Main_SP {
+public:
+    RTAFE_Main_SP();
+    ~RTAFE_Main_SP();
+
+    void dspRTAFE_InitBuffer(u16 numSampleInBuffer);
+
+    tSample* dspRTAFE_pGetInputBuffer();
+    void dspRTAFE_vCompleteInput();
+    tSample* dspRTAFE_pGetOutputBuffer();
+    void dspRTAFE_vCompleteOutput();
+
+    /* main process function with full dsp pipeline*/
+    void dspRTAFE_vProcess();
 private:
     BiquadLPF       *pBiquadFilterLPF     = nullptr;
     BiquadHPF       *pBiquadFilterHPF     = nullptr;
@@ -21,16 +44,11 @@ private:
     BiquadBPF       *pBiquadFilterBPF     = nullptr;
     BiquadNotch     *pBiquadFilterNotch   = nullptr;
     BiquadAllpass   *pBiquadFilterAllpass = nullptr;
+    PreEmphasis     *pPreEmphasis         = nullptr;
+    DCRemoval       *pDCRemoval           = nullptr;
+    NoiseSuppress   *pNoiseSuppress       = nullptr;
 
-public:
-    RTAFE_Main_SP();
-    ~RTAFE_Main_SP();
-
-    /* signal processing functions, containing dsp pipeline */
-    void dspRTAFE_Process(TrplBufferStr *pProcessBuf);
-
-    /* list of init functions */
-    void dspRTAFE_InitBuffer(u16 numSampleInBuffer);
+    BufferMng       *pBufferMng           = nullptr;
 };
 
 #endif /* RTAFE_MAIN_SP_HPP */

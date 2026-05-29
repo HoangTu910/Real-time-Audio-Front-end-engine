@@ -25,7 +25,7 @@ private:
 public:
     RTAFE_Main_AP();
     ~RTAFE_Main_AP();
-    void dspRTAFE_Process(TrplBufferStr *pProcessBuf);
+    void dspRTAFE_Process();
     void dspRTAFE_InitBuffer(u16 numSampleInBuffer);
 };
 

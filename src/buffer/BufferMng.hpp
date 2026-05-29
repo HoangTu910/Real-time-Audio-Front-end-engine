@@ -1,3 +1,6 @@
+#ifndef BUFFERMNG_HPP
+#define BUFFERMNG_HPP
+
 #include <cstddef>
 #include "utils.h"
 
@@ -47,3 +50,5 @@ private:
     void vInitTripleBuffer(u16 numSampleInBuffer);
     void vReleaseTripleBuffer();
 };
+
+#endif /* BUFFERMNG_HPP */

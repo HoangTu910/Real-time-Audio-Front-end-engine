@@ -1,39 +1,71 @@
-SRC_DIR = src
+SRC_DIR   = src
 UTILS_DIR = utils
-BIQUAD_DIR = src/biquad
-ARM_CORTEX_M_DIR = arm-cortexM
+BIN_DIR   = bin
 
-TARGET = biquad_test
-TARGET_ARM = biquad_test_arm
-
-# Host compiler
-CC = gcc
-
-# ARMv8-A compiler (AArch64)
-CC_ARM = aarch64-linux-gnu-gcc
-
-INC_DIRS = -Iinclude -I$(SRC_DIR) -I$(UTILS_DIR) -I$(BIQUAD_DIR)
-
-LDLIBS = -lm
-CFLAGS = -Wall -O2 $(INC_DIRS)
-
-# ARM flags
-CFLAGS_ARM = -Wall -O2 \
-             -march=armv8-a+simd \
-             -ffast-math \
-             -DFIXED_POINT -DARM_TARGET \
-             $(INC_DIRS)
-
-LDFLAGS_ARM = -static
-LDLIBS_ARM  = -lm
+TARGET     = $(BIN_DIR)/test_rtafe
+TARGET_ARM = $(BIN_DIR)/arm_test_rtafe
 
 # =========================
-# HOST BUILD
+# Source files for test_rtafe
 # =========================
-all: $(TARGET)
+CPP_SRCS = tests/test_rtafe.cpp \
+           $(SRC_DIR)/RTAFE_main_sp.cpp \
+           $(SRC_DIR)/RTAFE_main_ap.cpp \
+           $(SRC_DIR)/buffer/BufferMng.cpp \
+           $(SRC_DIR)/buffer/WavFileMgr.cpp \
+           $(SRC_DIR)/biquad/BiquadFilter.cpp \
+           $(SRC_DIR)/biquad/IBiquadDesign.cpp \
+           $(SRC_DIR)/module/noise_suppress.cpp \
+           $(SRC_DIR)/module/dc_removal.cpp \
+           $(SRC_DIR)/module/pre-emphasis.cpp \
+           $(SRC_DIR)/module/IDSPModule.cpp
+
+C_SRCS = $(SRC_DIR)/module/fft.c
+
+INC_DIRS = -I$(SRC_DIR) -I$(UTILS_DIR) -I$(SRC_DIR)/biquad -I$(SRC_DIR)/module -I$(SRC_DIR)/buffer
+
+# =========================
+# Host compiler (x86)
+# =========================
+CXX = g++
+CC  = gcc
+
+CXXFLAGS = -Wall -O2 -std=c++14 -DFIXED_POINT $(INC_DIRS)
+CFLAGS   = -Wall -O2 -DFIXED_POINT $(INC_DIRS)
+LDFLAGS  = -lm -lstdc++
+
+# =========================
+# ARM compiler (AArch64)
+# =========================
+CXX_ARM = aarch64-linux-gnu-g++
+CC_ARM  = aarch64-linux-gnu-gcc
+
+CXXFLAGS_ARM = -Wall -O2 -std=c++14 \
+               -march=armv8-a+simd -ffast-math \
+               -DFIXED_POINT -DARM_TARGET $(INC_DIRS)
+CFLAGS_ARM   = -Wall -O2 -march=armv8-a+simd -ffast-math \
+               -DFIXED_POINT -DARM_TARGET $(INC_DIRS)
+LDFLAGS_ARM  = -static -lm -lstdc++
+
+# =========================
+# Object files
+# =========================
+OBJS     = $(CPP_SRCS:.cpp=.o) $(C_SRCS:.c=.o)
+OBJS_ARM = $(CPP_SRCS:.cpp=.arm.o) $(C_SRCS:.c=.arm.o)
+
+# =========================
+# HOST BUILD (default)
+# =========================
+all: dirs $(TARGET)
+
+dirs:
+	@mkdir -p $(BIN_DIR)
 
 $(TARGET): $(OBJS)
-	$(CC) $(OBJS) -o $(TARGET) $(LDLIBS)
+	$(CXX) $(OBJS) -o $(TARGET) $(LDFLAGS)
+
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -41,64 +73,34 @@ $(TARGET): $(OBJS)
 # =========================
 # ARM BUILD
 # =========================
-arm: $(TARGET_ARM)
+arm: dirs $(TARGET_ARM)
 
 $(TARGET_ARM): $(OBJS_ARM)
-	$(CC_ARM) $(OBJS_ARM) -o $(TARGET_ARM) \
-	    $(LDFLAGS_ARM) $(LDLIBS_ARM)
+	$(CXX_ARM) $(OBJS_ARM) -o $(TARGET_ARM) $(LDFLAGS_ARM)
+
+%.arm.o: %.cpp
+	$(CXX_ARM) $(CXXFLAGS_ARM) -c $< -o $@
 
 %.arm.o: %.c
 	$(CC_ARM) $(CFLAGS_ARM) -c $< -o $@
 
 # =========================
-# TESTING (tests/ directory)
+# RUN
 # =========================
+run: $(TARGET)
+	@./$(TARGET)
 
-TEST_DIR  = tests
-BIN_DIR   = bin
-TEST_SRCS = $(wildcard $(TEST_DIR)/*.c)
-TEST_BINS = $(patsubst $(TEST_DIR)/%.c, $(BIN_DIR)/%, $(TEST_SRCS))
+run-wav: $(TARGET)
+	@if [ -z "$(INPUT)" ] || [ -z "$(OUTPUT)" ]; then \
+		echo "Usage: make run-wav INPUT=input.wav OUTPUT=output.wav"; \
+		exit 1; \
+	fi
+	@./$(TARGET) $(INPUT) $(OUTPUT)
 
-# Core library source files needed for tests
-FE_CORE_SRCS = src/fe_api.c src/module/dc_removal.c src/biquad/biquad.c src/module/fft.c src/module/noise_suppress.c
+# =========================
+# CLEAN
+# =========================
+clean:
+	rm -f $(OBJS) $(OBJS_ARM) $(TARGET) $(TARGET_ARM)
 
-$(BIN_DIR):
-	@mkdir -p $(BIN_DIR)
-
-# Compile with host compiler
-$(BIN_DIR)/%: $(TEST_DIR)/%.c $(FE_CORE_SRCS) | $(BIN_DIR)
-	@echo "Compiling $<..."
-	@$(CC) $(CFLAGS) $< $(FE_CORE_SRCS) -o $@ $(LDLIBS)
-
-# Compile with ARM compiler
-$(BIN_DIR)/arm_%: $(TEST_DIR)/%.c $(FE_CORE_SRCS) | $(BIN_DIR)
-	@echo "Compiling ARM $<..."
-	@$(CC_ARM) $(CFLAGS_ARM) $< $(FE_CORE_SRCS) -o $@ $(LDFLAGS_ARM)
-
-test_fft: $(BIN_DIR)/test_fft
-	@echo "Running test_fft..."
-	@./$(BIN_DIR)/test_fft
-
-test_sincos: $(BIN_DIR)/test_sincos
-	@echo "Running test_sincos..."
-	@./$(BIN_DIR)/test_sincos
-
-test_buffer_frame: $(BIN_DIR)/test_buffer_frame
-	@echo "Running test_buffer_frame..."
-	@./$(BIN_DIR)/test_buffer_frame
-
-test_benchmark: $(BIN_DIR)/test_benchmark
-	@echo "Running test_benchmark..."
-	@./$(BIN_DIR)/test_benchmark
-
-arm_test_benchmark: $(BIN_DIR)/arm_test_benchmark
-	@echo "ARM test compiled: $(BIN_DIR)/arm_test_benchmark"
-
-clean-test:
-	@echo "Cleaning test artifacts..."
-	@rm -rf $(BIN_DIR)
-	
-clean: clean-test
-	rm -f $(OBJS) $(OBJS_ARM) $(TARGET) $(TARGET_ARM).elf
-
-.PHONY: all arm_test_benchmark test test-all clean-test clean
+.PHONY: all arm dirs clean run run-wav

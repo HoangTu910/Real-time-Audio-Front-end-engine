@@ -36,6 +36,10 @@ void BufferMng::vInitTripleBuffer(u16 numSampleInBuffer)
     pCurrentInputBuf      = &trTripleBuffer[0];  /* A = input */
     pCurrentProcessingBuf = &trTripleBuffer[1];  /* B = processing */
     pCurrentOutputBuf     = &trTripleBuffer[2];  /* C = output */
+
+    /* Output buffer has no valid data on first cycle — mark as consumed
+     * so the first rotation can proceed without waiting for a consumer */
+    pCurrentOutputBuf->isCompleted = true;
 }
 
 void BufferMng::vReleaseTripleBuffer()

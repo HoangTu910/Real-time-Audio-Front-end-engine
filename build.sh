@@ -4,8 +4,6 @@ set -e
 
 ARCH="x86"
 TYPE="FIXED_POINT"
-OPT="default"
-BENCHMARK=false
 
 for arg in "$@"; do
     case "$arg" in
@@ -15,14 +13,18 @@ for arg in "$@"; do
         --type=*)
             TYPE="${arg#*=}"
             ;;
-        --opt=*)
-            OPT="${arg#*=}"
-            ;;
-        --benchmark)
-            BENCHMARK=true
-            ;;
         -h|--help)
-            echo "Usage: ./build --arch=x86|arm --type=FIXED_POINT|FLOATING_POINT --opt=default|optimize"
+            echo "Usage: ./build.sh --arch=x86|arm --type=FIXED_POINT|FLOATING_POINT"
+            echo ""
+            echo "Builds test_rtafe (WAV processing + triple buffer test)"
+            echo ""
+            echo "Options:"
+            echo "  --arch=x86|arm           Target architecture (default: x86)"
+            echo "  --type=FIXED_POINT|FLOATING_POINT  Sample type (default: FIXED_POINT)"
+            echo ""
+            echo "Run modes:"
+            echo "  ./bin/test_rtafe                    Triple buffer test"
+            echo "  ./bin/test_rtafe input.wav out.wav  WAV processing"
             exit 0
             ;;
         *)
@@ -32,21 +34,24 @@ for arg in "$@"; do
     esac
 done
 
-INC_DIRS="-Iinclude -Isrc -Iutils -Isrc/biquad"
-SRCS="tests/test_benchmark.c src/fe_api.c src/module/dc_removal.c src/biquad/biquad.c src/module/fft.c src/module/noise_suppress.c"
+SRC_DIR="src"
+UTILS_DIR="utils"
 
-case "$OPT" in
-    default)
-        OPT_FLAGS="-O2"
-        ;;
-    optimize)
-        OPT_FLAGS="-O2 -ffast-math -DOPTIMIZATION_METHOD"
-        ;;
-    *)
-        echo "Unsupported optimization level: $OPT"
-        exit 1
-        ;;
-esac
+INC_DIRS="-I${SRC_DIR} -I${UTILS_DIR} -I${SRC_DIR}/biquad -I${SRC_DIR}/module -I${SRC_DIR}/buffer"
+
+CPP_SRCS="tests/test_rtafe.cpp \
+    ${SRC_DIR}/RTAFE_main_sp.cpp \
+    ${SRC_DIR}/RTAFE_main_ap.cpp \
+    ${SRC_DIR}/buffer/BufferMng.cpp \
+    ${SRC_DIR}/buffer/WavFileMgr.cpp \
+    ${SRC_DIR}/biquad/BiquadFilter.cpp \
+    ${SRC_DIR}/biquad/IBiquadDesign.cpp \
+    ${SRC_DIR}/module/noise_suppress.cpp \
+    ${SRC_DIR}/module/dc_removal.cpp \
+    ${SRC_DIR}/module/pre-emphasis.cpp \
+    ${SRC_DIR}/module/IDSPModule.cpp"
+
+C_SRCS="${SRC_DIR}/module/fft.c"
 
 case "$TYPE" in
     FIXED_POINT)
@@ -61,26 +66,44 @@ case "$TYPE" in
         ;;
 esac
 
+mkdir -p bin
+
 if [ "$ARCH" = "arm" ]; then
+    CXX="aarch64-linux-gnu-g++"
     CC="aarch64-linux-gnu-gcc"
-    TARGET_FLAGS="-march=armv8-a+simd -DARM_TARGET"
-    OUT="bin/arm_test_benchmark"
-    LDFLAGS="-static"
+    TARGET_FLAGS="-march=armv8-a+simd -ffast-math -DARM_TARGET"
+    OUT="bin/arm_test_rtafe"
+    LDFLAGS="-static -lm -lstdc++"
 elif [ "$ARCH" = "x86" ]; then
+    CXX="g++"
     CC="gcc"
     TARGET_FLAGS=""
-    OUT="bin/test_benchmark"
-    LDFLAGS=""
+    OUT="bin/test_rtafe"
+    LDFLAGS="-lm -lstdc++"
 else
     echo "Unsupported arch: $ARCH"
     exit 1
 fi
 
-if [ "$BENCHMARK" = "true" ]; then
-    EXTRA_FLAGS="$EXTRA_FLAGS -DBENCHMARK_MODE"
-fi
+echo "Building $OUT (arch=$ARCH, type=$TYPE)"
 
-mkdir -p bin
+# Compile C sources
+C_OBJS=""
+for src in $C_SRCS; do
+    obj="${src%.c}.o"
+    $CC -Wall -O2 $TYPE_FLAGS $TARGET_FLAGS $INC_DIRS -c "$src" -o "$obj"
+    C_OBJS="$C_OBJS $obj"
+done
 
-echo "Building $OUT (arch=$ARCH, type=$TYPE, opt=$OPT, benchmark=$BENCHMARK)"
-$CC -Wall $OPT_FLAGS $TARGET_FLAGS $TYPE_FLAGS $EXTRA_FLAGS $INC_DIRS $SRCS -o "$OUT" $LDFLAGS -lm
+# Compile C++ sources
+CXX_OBJS=""
+for src in $CPP_SRCS; do
+    obj="${src%.cpp}.o"
+    $CXX -Wall -O2 -std=c++14 $TYPE_FLAGS $TARGET_FLAGS $INC_DIRS -c "$src" -o "$obj"
+    CXX_OBJS="$CXX_OBJS $obj"
+done
+
+# Link
+$CXX $CXX_OBJS $C_OBJS -o "$OUT" $LDFLAGS
+
+echo "Done: $OUT"

@@ -19,7 +19,7 @@ RTAFE_Main_AP::~RTAFE_Main_AP()
     delete pBiquadFilterNotch;
     delete pBiquadFilterAllpass;
 }
-void RTAFE_Main_AP::dspRTAFE_Process(TrplBufferStr *pProcessBuf)
+void RTAFE_Main_AP::dspRTAFE_Process()
 {
 }
 
