@@ -70,13 +70,19 @@
  *   3. Compute gain G(f) and apply: S(f) = G(f) * Y(f)
  *   4. iSTFT: S(f) -> s^[n]
  */
+#define MINSTAT_WINDOW 30 
+#define MAX_FRAME_SIZE 512
+#define ALPHA_SMOOTH   0.8f      // smoothing
+#define BETA_FLOOR     0.02f     // spectral floor
+#define BIAS_CORR      1.5f      // bias compensation (approx)
 
 typedef struct MinStatState {
     float pSmooth[512];
-    float pMin[512];
-    int minimumCount;
     bool bInitialized;
     int lastFrameSize;
+    float minBuffer[MINSTAT_WINDOW][MAX_FRAME_SIZE];
+    int   minBufIdx = 0;
+    int   minBufCount = 0;
 } MinStatState;
 
 class NoiseSuppress : public IDSPModule {
@@ -88,19 +94,12 @@ public:
     void vProcessBlockFix(TrplBufferStr *pProcessBuf) override;
 
 private:
-    static const int MAX_FRAME_SIZE = 512;
-
     /* 50% overlap-add state */
     float m_overlapIn[MAX_FRAME_SIZE / 2];   /* input overlap: last N/2 of previous input */
     float m_overlapOut[MAX_FRAME_SIZE / 2];  /* output OLA: last N/2 of previous iFFT */
 
     /* minimum statistics noise estimation state */
     MinStatState m_minStatState;
-
-    /* Parameters */
-    static constexpr float ALPHA = 0.9f;   /* smoothing factor */
-    static constexpr float BETA  = 0.02f;   /* spectral floor (gain minimum) to prevent musical noise */
-    static const int MIN_POWER_UPDATE_INTERVAL = 50;
 
     void vInitNoiseState(int frameSize);
 };
