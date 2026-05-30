@@ -56,6 +56,8 @@ C_SRCS="${SRC_DIR}/module/fft.c"
 case "$TYPE" in
     FIXED_POINT)
         TYPE_FLAGS="-DFIXED_POINT"
+        echo "WARNING: Fixed-point currently still on development, the output may be unusable. 
+        Use at your own risk or switch to floating-point (--type=FLOATING_POINT)."
         ;;
     FLOATING_POINT)
         TYPE_FLAGS=""
