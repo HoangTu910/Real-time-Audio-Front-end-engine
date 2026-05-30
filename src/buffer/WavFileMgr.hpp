@@ -8,9 +8,9 @@
 /**
  * WAV File Manager
  *
- * Reads WAV file frame-by-frame with 50% overlap.
+ * Reads WAV file frame-by-frame (non-overlapping).
  * Deinterleaves multi-channel audio into separate per-channel buffers (max 4).
- * Writes processed frames back with overlap-add reconstruction, re-interleaving.
+ * Writes processed frames back with re-interleaving (no OLA — OLA is in DSP modules).
  *
  * Usage:
  *   WavFileMgr wav;
@@ -33,18 +33,18 @@ public:
 
     /* ── Read API ── */
 
-    /** Open WAV file for reading, sets frame size and hop = frameSize/2 */
+    /** Open WAV file for reading, sets frame size (no overlap, hop = frameSize) */
     bool bOpenRead(const char *filename, u16 frameSize);
 
-    /** Read next frame with 50% overlap, deinterleaved into per-channel buffers.
+    /** Read next frame (non-overlapping), deinterleaved into per-channel buffers.
      *  Returns array of channel pointers: ppBuf[0]=ch0, ppBuf[1]=ch1, ...
-     *  First call returns [0..N-1], second returns [N/2..3N/2-1], etc. */
+     *  Each call returns the next sequential frameSize samples. */
     sample_t** ppReadFrame();
 
     /** Check if more frames available */
     bool bHasNextFrame() const;
 
-    /** Get total number of frames (including overlap) */
+    /** Get total number of frames */
     u32 uGetTotalFrames() const;
 
     /** Get file info */
@@ -61,7 +61,7 @@ public:
     /** Open WAV file for writing. Uses same format as input. */
     bool bOpenWrite(const char *filename);
 
-    /** Write processed per-channel frames. Interleaves and does OLA.
+    /** Write processed per-channel frames. Interleaves and writes directly.
      *  ppChannels[ch][0..frameSize-1] for each channel. */
     void vWriteFrame(sample_t **ppChannels, u16 frameSize);
 
@@ -101,10 +101,9 @@ private:
     /* Read state */
     FILE        *m_pReadFile;
     sample_t    *m_apChannelBuf[MAX_CHANNELS];   /* per-channel frame buffers [N] */
-    sample_t    *m_apOverlapBuf[MAX_CHANNELS];   /* per-channel overlap [N/2] */
     sample_t    *m_apChannelPtrs[MAX_CHANNELS];   /* pointers returned to caller */
     u16          m_frameSize;         /* N */
-    u16          m_hopSize;           /* N/2 */
+    u16          m_hopSize;           /* = frameSize (no overlap) */
     u32          m_sampleRate;
     u16          m_channels;
     u16          m_bitsPerSample;
@@ -115,7 +114,7 @@ private:
 
     /* Write state */
     FILE        *m_pWriteFile;
-    sample_t    *m_apOutputBuf[MAX_CHANNELS];    /* per-channel OLA accumulators */
+    sample_t    *m_apOutputBuf[MAX_CHANNELS];    /* per-channel output buffers */
     u32          m_samplesWritten;    /* samples written so far */
     u32          m_outputSizeBytes;   /* total output data bytes */
     bool         m_bWriteOpen;

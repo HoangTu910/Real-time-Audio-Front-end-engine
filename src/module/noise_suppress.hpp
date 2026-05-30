@@ -52,6 +52,8 @@
  * alpha is the over-subtraction factor, and beta is the spectral floor to prevent musical noise */
 
 #include "IDSPModule.hpp"
+#include "utils.h"
+#include "BufferMng.hpp"
 #include "fft.h"
 
 /**
@@ -88,12 +90,16 @@ public:
 private:
     static const int MAX_FRAME_SIZE = 512;
 
+    /* 50% overlap-add state */
+    float m_overlapIn[MAX_FRAME_SIZE / 2];   /* input overlap: last N/2 of previous input */
+    float m_overlapOut[MAX_FRAME_SIZE / 2];  /* output OLA: last N/2 of previous iFFT */
+
     /* minimum statistics noise estimation state */
     MinStatState m_minStatState;
 
     /* Parameters */
     static constexpr float ALPHA = 0.9f;   /* smoothing factor */
-    static constexpr float BETA  = 1.0f;   /* noise floor gain */
+    static constexpr float BETA  = 0.02f;   /* spectral floor (gain minimum) to prevent musical noise */
     static const int MIN_POWER_UPDATE_INTERVAL = 50;
 
     void vInitNoiseState(int frameSize);

@@ -27,7 +27,7 @@ public:
 private:
     float m_alpha;
     s32 m_alpha_fixed;
-    DCRemovalState state;
+    DCRemovalState m_state;
 };
 
 #endif /* DC_REMOVAL_HPP */

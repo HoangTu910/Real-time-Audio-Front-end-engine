@@ -1,10 +1,6 @@
 #include "WavFileMgr.hpp"
 #include <cstring>
 
-/* ──────────────────────────────────────────────────────────────────────────── */
-/*  Constructor / Destructor                                                    */
-/* ──────────────────────────────────────────────────────────────────────────── */
-
 WavFileMgr::WavFileMgr()
     : m_pReadFile(nullptr)
     , m_frameSize(0)
@@ -23,7 +19,6 @@ WavFileMgr::WavFileMgr()
 {
     for (u16 i = 0; i < MAX_CHANNELS; i++) {
         m_apChannelBuf[i]  = nullptr;
-        m_apOverlapBuf[i]  = nullptr;
         m_apChannelPtrs[i] = nullptr;
         m_apOutputBuf[i]   = nullptr;
     }
@@ -42,16 +37,10 @@ void WavFileMgr::vCleanup()
     for (u16 i = 0; i < MAX_CHANNELS; i++) {
         delete[] m_apChannelBuf[i];
         m_apChannelBuf[i] = nullptr;
-        delete[] m_apOverlapBuf[i];
-        m_apOverlapBuf[i] = nullptr;
         delete[] m_apOutputBuf[i];
         m_apOutputBuf[i] = nullptr;
     }
 }
-
-/* ──────────────────────────────────────────────────────────────────────────── */
-/*  Read API                                                                    */
-/* ──────────────────────────────────────────────────────────────────────────── */
 
 bool WavFileMgr::bOpenRead(const char *filename, u16 frameSize)
 {
@@ -105,9 +94,9 @@ bool WavFileMgr::bOpenRead(const char *filename, u16 frameSize)
     m_dataSizeBytes = hdr.dataSize;
     m_totalSamples  = m_dataSizeBytes / (m_channels * (m_bitsPerSample / 8));
 
-    /* Frame setup: N = frameSize, hop = N/2 */
+    /* Frame setup: no overlap, hop = frameSize */
     m_frameSize = frameSize;
-    m_hopSize   = frameSize / 2;
+    m_hopSize   = frameSize;
 
     /* Allocate buffers */
     vInitReadBuffer();
@@ -115,9 +104,9 @@ bool WavFileMgr::bOpenRead(const char *filename, u16 frameSize)
     m_samplesRead = 0;
     m_bReadOpen   = true;
 
-    printf("WAV: %lu Hz, %d ch, %lu samples, frame=%d, hop=%d\n",
+    printf("WAV: %lu Hz, %d ch, %lu samples, frame=%d\n",
            (unsigned long)m_sampleRate, m_channels,
-           (unsigned long)m_totalSamples, m_frameSize, m_hopSize);
+           (unsigned long)m_totalSamples, m_frameSize);
 
     return true;
 }
@@ -126,17 +115,13 @@ void WavFileMgr::vInitReadBuffer()
 {
     for (u16 ch = 0; ch < MAX_CHANNELS; ch++) {
         delete[] m_apChannelBuf[ch];
-        delete[] m_apOverlapBuf[ch];
 
         if (ch < m_channels) {
             m_apChannelBuf[ch] = new sample_t[m_frameSize];
-            m_apOverlapBuf[ch] = new sample_t[m_hopSize];
             memset(m_apChannelBuf[ch], 0, sizeof(sample_t) * m_frameSize);
-            memset(m_apOverlapBuf[ch], 0, sizeof(sample_t) * m_hopSize);
             m_apChannelPtrs[ch] = m_apChannelBuf[ch];
         } else {
             m_apChannelBuf[ch]  = nullptr;
-            m_apOverlapBuf[ch]  = nullptr;
             m_apChannelPtrs[ch] = nullptr;
         }
     }
@@ -147,76 +132,42 @@ sample_t** WavFileMgr::ppReadFrame()
     if (!m_bReadOpen || !bHasNextFrame()) return nullptr;
 
     /*
-     * 50% overlap read with multi-channel deinterleave:
+     * Read one full frame with multi-channel deinterleave (no overlap):
      *
      *   Read interleaved: L0 R0 L1 R1 ... from file
      *   Deinterleave into per-channel buffers: ch0=[L0 L1 ...], ch1=[R0 R1 ...]
-     *   Each channel buffer maintains its own overlap for OLA.
      */
 
     u16 bytesPerSample = m_bitsPerSample / 8;
     u16 frameBytes = m_channels * bytesPerSample;  /* bytes per interleaved sample */
 
-    if (m_samplesRead == 0) {
-        /* First frame: read full N time-domain samples */
-        u32 toRead = m_frameSize;
-        if (m_samplesRead + toRead > m_totalSamples) {
-            toRead = m_totalSamples - m_samplesRead;
-        }
-
-        u32 rawBytes = m_frameSize * frameBytes;
-        u8 *raw = new u8[rawBytes];
-        memset(raw, 0, rawBytes);
-        fread(raw, frameBytes, toRead, m_pReadFile);
-
-        /* Deinterleave into per-channel buffers */
-        for (u16 i = 0; i < m_frameSize; i++) {
-            for (u16 ch = 0; ch < m_channels; ch++) {
-                m_apChannelBuf[ch][i] = sConvertToSample(
-                    raw + i * frameBytes + ch * bytesPerSample);
-            }
-        }
-
-        delete[] raw;
-        m_samplesRead += toRead;
-    } else {
-        /* Subsequent frames: shift left by N/2, read N/2 new */
-
-        /* Shift each channel: copy right half to left half */
-        for (u16 ch = 0; ch < m_channels; ch++) {
-            memmove(m_apChannelBuf[ch], m_apChannelBuf[ch] + m_hopSize,
-                    sizeof(sample_t) * m_hopSize);
-        }
-
-        /* Read new hopSize time-domain samples */
-        u32 toRead = m_hopSize;
-        if (m_samplesRead + toRead > m_totalSamples) {
-            toRead = m_totalSamples - m_samplesRead;
-        }
-
-        u32 rawBytes = m_hopSize * frameBytes;
-        u8 *raw = new u8[rawBytes];
-        memset(raw, 0, rawBytes);
-        fread(raw, frameBytes, toRead, m_pReadFile);
-
-        /* Deinterleave into right half of per-channel buffers */
-        for (u16 i = 0; i < m_hopSize; i++) {
-            for (u16 ch = 0; ch < m_channels; ch++) {
-                m_apChannelBuf[ch][m_hopSize + i] = sConvertToSample(
-                    raw + i * frameBytes + ch * bytesPerSample);
-            }
-        }
-
-        /* Zero-pad if less than hopSize samples available */
-        for (u32 i = toRead; i < m_hopSize; i++) {
-            for (u16 ch = 0; ch < m_channels; ch++) {
-                m_apChannelBuf[ch][m_hopSize + i] = 0;
-            }
-        }
-
-        delete[] raw;
-        m_samplesRead += toRead;
+    u32 toRead = m_frameSize;
+    if (m_samplesRead + toRead > m_totalSamples) {
+        toRead = m_totalSamples - m_samplesRead;
     }
+
+    u32 rawBytes = m_frameSize * frameBytes;
+    u8 *raw = new u8[rawBytes];
+    memset(raw, 0, rawBytes);
+    fread(raw, frameBytes, toRead, m_pReadFile);
+
+    /* Deinterleave into per-channel buffers */
+    for (u16 i = 0; i < m_frameSize; i++) {
+        for (u16 ch = 0; ch < m_channels; ch++) {
+            m_apChannelBuf[ch][i] = sConvertToSample(
+                raw + i * frameBytes + ch * bytesPerSample);
+        }
+    }
+
+    /* Zero-pad if fewer than frameSize samples available */
+    for (u32 i = toRead; i < m_frameSize; i++) {
+        for (u16 ch = 0; ch < m_channels; ch++) {
+            m_apChannelBuf[ch][i] = 0;
+        }
+    }
+
+    delete[] raw;
+    m_samplesRead += toRead;
 
     return m_apChannelPtrs;
 }
@@ -241,10 +192,6 @@ void WavFileMgr::vCloseRead()
     m_bReadOpen = false;
 }
 
-/* ──────────────────────────────────────────────────────────────────────────── */
-/*  Write API                                                                   */
-/* ──────────────────────────────────────────────────────────────────────────── */
-
 bool WavFileMgr::bOpenWrite(const char *filename)
 {
     if (m_bWriteOpen) vCloseWrite();
@@ -256,11 +203,10 @@ bool WavFileMgr::bOpenWrite(const char *filename)
     }
 
     /* Allocate per-channel output accumulators */
-    u32 estOutputSamples = m_totalSamples + m_frameSize;  /* extra for overlap */
     for (u16 ch = 0; ch < m_channels; ch++) {
         delete[] m_apOutputBuf[ch];
-        m_apOutputBuf[ch] = new sample_t[estOutputSamples];
-        memset(m_apOutputBuf[ch], 0, sizeof(sample_t) * estOutputSamples);
+        m_apOutputBuf[ch] = new sample_t[m_totalSamples];
+        memset(m_apOutputBuf[ch], 0, sizeof(sample_t) * m_totalSamples);
     }
 
     m_samplesWritten  = 0;
@@ -274,22 +220,17 @@ void WavFileMgr::vWriteFrame(sample_t **ppChannels, u16 frameSize)
 {
     if (!m_bWriteOpen || !ppChannels) return;
     if (frameSize != m_frameSize) return;
+    if (m_samplesWritten + frameSize > m_totalSamples) return;
 
-    /*
-     * Overlap-Add (OLA) per channel with 50% overlap.
-     * Each channel accumulates independently; interleave on close.
-     */
-
-    u32 offset = m_samplesWritten;
-
+    /* Write each channel's frame directly to output buffer */
     for (u16 ch = 0; ch < m_channels; ch++) {
         if (!ppChannels[ch]) continue;
         for (u16 i = 0; i < frameSize; i++) {
-            m_apOutputBuf[ch][offset + i] += ppChannels[ch][i];
+            m_apOutputBuf[ch][m_samplesWritten + i] = ppChannels[ch][i];
         }
     }
 
-    m_samplesWritten += m_hopSize;
+    m_samplesWritten += frameSize;
 }
 
 void WavFileMgr::vCloseWrite()
@@ -300,9 +241,8 @@ void WavFileMgr::vCloseWrite()
     }
 
     /* Write WAV header */
-    u32 totalOut = m_samplesWritten + m_frameSize;
     u16 bytesPerSample = m_bitsPerSample / 8;
-    u32 dataSize = totalOut * m_channels * bytesPerSample;
+    u32 dataSize = m_samplesWritten * m_channels * bytesPerSample;
     WavHeader hdr;
     memcpy(hdr.riffId, "RIFF", 4);
     hdr.fileSize      = sizeof(WavHeader) - 8 + dataSize;
@@ -320,20 +260,20 @@ void WavFileMgr::vCloseWrite()
 
     fwrite(&hdr, sizeof(WavHeader), 1, m_pWriteFile);
 
-    /* Write samples in original bit depth, interleaved from per-channel buffers */
+    /* Interleave channels and write in original bit depth */
     u16 frameBytes = m_channels * bytesPerSample;
-    u8 *raw = new u8[totalOut * frameBytes];
-    for (u32 i = 0; i < totalOut; i++) {
+    u8 *raw = new u8[m_samplesWritten * frameBytes];
+    for (u32 i = 0; i < m_samplesWritten; i++) {
         for (u16 ch = 0; ch < m_channels; ch++) {
             vConvertFromSample(m_apOutputBuf[ch][i],
                                raw + i * frameBytes + ch * bytesPerSample);
         }
     }
-    fwrite(raw, frameBytes, totalOut, m_pWriteFile);
+    fwrite(raw, frameBytes, m_samplesWritten, m_pWriteFile);
     delete[] raw;
 
     printf("WAV output: %lu samples (%d-bit) written to file\n",
-           (unsigned long)totalOut, m_bitsPerSample);
+           (unsigned long)m_samplesWritten, m_bitsPerSample);
 
     fclose(m_pWriteFile);
     m_pWriteFile = nullptr;

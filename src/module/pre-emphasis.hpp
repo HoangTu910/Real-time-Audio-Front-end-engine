@@ -16,7 +16,7 @@ public:
     void vProcessBlockFix(TrplBufferStr *pProcessBuf) override;
     void vSetCoeffs(float preEmphasisFactor);
 private:
-    PreEmState state;
+    PreEmState m_state;
     float m_alpha;
     s32 m_alpha_fixed;
 };

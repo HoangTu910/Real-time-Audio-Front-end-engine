@@ -8,7 +8,7 @@ RTAFE_Main_SP::RTAFE_Main_SP()
     pBiquadFilterBPF     = new BiquadBPF();
     pBiquadFilterNotch   = new BiquadNotch();
     pBiquadFilterAllpass = new BiquadAllpass();
-    pPreEmphasis         = new PreEmphasis();
+    pPreEmphasis         = new PreEmphasis(0.68f);
     pDCRemoval           = new DCRemoval();
     pNoiseSuppress       = new NoiseSuppress();
 }

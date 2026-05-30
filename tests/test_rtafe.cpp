@@ -5,7 +5,7 @@
 /* ── Process WAV file through DSP pipeline ── */
 static void processWavFile(const char *inputFile, const char *outputFile)
 {
-    const u16 frameSize = 512;
+    const u16 frameSize = 256;
 
     printf("\n=== WAV Processing ===\n");
     printf("Input:  %s\n", inputFile);
