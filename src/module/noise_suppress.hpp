@@ -52,8 +52,8 @@
  * alpha is the over-subtraction factor, and beta is the spectral floor to prevent musical noise */
 
 #include "idsp_module.hpp"
-#include "utils.h"
-#include "buffer_mng.hpp"
+#include "utils.hpp"
+#include "buffer_pool.hpp"
 #include "fft.h"
 
 /**
@@ -90,8 +90,8 @@ public:
     NoiseSuppress();
     ~NoiseSuppress() override = default;
 
-    void vProcessBlock(TrplBufferStr *pProcessBuf) override;
-    void vProcessBlockFix(TrplBufferStr *pProcessBuf) override;
+    void vProcessBlock(DspBlock *dsp_block) override;
+    void vProcessBlockFix(DspBlock *dsp_block) override;
 
 private:
     /* 50% overlap-add state */

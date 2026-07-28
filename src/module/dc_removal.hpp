@@ -2,8 +2,8 @@
 #define DC_REMOVAL_HPP
 
 #include "idsp_module.hpp"
-#include "utils.h"
-#include "buffer_mng.hpp"
+#include "utils.hpp"
+#include "buffer_pool.hpp"
 
 /** Direct form I from Richard Lyons */
 /** Difference equation for Direct Form I
@@ -20,8 +20,8 @@ public:
     DCRemoval(float alpha = 0.995f);
     ~DCRemoval();
 
-    void vProcessBlock(TrplBufferStr *pBuf) override;
-    void vProcessBlockFix(TrplBufferStr *pBuf) override;
+    void vProcessBlock(DspBlock *dsp_block) override;
+    void vProcessBlockFix(DspBlock *dsp_block) override;
     void vSetCoeffs(float alpha);
 
 private:

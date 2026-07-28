@@ -1,8 +1,8 @@
 #ifndef BIQUAD_H
 #define BIQUAD_H
 
-#include "utils.h"
-#include "buffer_mng.hpp"
+#include "utils.hpp"
+#include "buffer_pool.hpp"
 
 typedef enum {
     BIQUAD_LPF,
@@ -33,13 +33,13 @@ struct BiquadStateFixed {
     tFixed y1, y2;
 };
 
-class IBiquadDesign {
+class IBiquad {
 public:
-    virtual ~IBiquadDesign() = default;
+    virtual ~IBiquad() = default;
 
-    virtual void Design(float frequency, float QFactor, float sampleRate) = 0;
-    virtual void ProcessBlock(TrplBufferStr *pProcessBuf);
-    virtual void ProcessBlockFixed(TrplBufferStr *pProcessBuf);
+    virtual void Design(float frequency, float q_factor, float sample_rate) = 0;
+    virtual void ProcessBlock(DspBlock /* to be defined */ *process_buf);
+    virtual void ProcessBlockFixed(DspBlock /* to be defined */ *process_buf);
 protected:
     BiquadCoeffs      biquad_coeffs_;
     BiquadState       biquad_state_;

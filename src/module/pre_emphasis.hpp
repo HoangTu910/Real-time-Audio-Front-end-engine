@@ -12,8 +12,8 @@ class PreEmphasis : public IDSPModule {
 public:
     PreEmphasis(float preEmphasisFactor = 0.97f);
     ~PreEmphasis() override = default;
-    void vProcessBlock(TrplBufferStr *pProcessBuf) override;
-    void vProcessBlockFix(TrplBufferStr *pProcessBuf) override;
+    void vProcessBlock(DspBlock *dsp_block) override;
+    void vProcessBlockFix(DspBlock *dsp_block) override;
     void vSetCoeffs(float preEmphasisFactor);
 private:
     PreEmState m_state;

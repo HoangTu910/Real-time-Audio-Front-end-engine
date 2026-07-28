@@ -1,33 +1,33 @@
 #include "i_biquad_design.hpp"
 
-class BiquadLPF : public IBiquadDesign {
+class BiquadLPF : public IBiquad {
 public:
-    void Design(float frequency, float QFactor, float sampleRate) override;
+    void Design(float frequency, float q_factor, float sample_rate) override;
 };
 
-class BiquadHPF : public IBiquadDesign {
+class BiquadHPF : public IBiquad {
 public:
-    void Design(float frequency, float QFactor, float sampleRate) override;
+    void Design(float frequency, float q_factor, float sample_rate) override;
 };  
 
-class BiquadPeak : public IBiquadDesign {
+class BiquadPeak : public IBiquad {
 public:
-    void Design(float frequency, float QFactor, float sampleRate) override;
+    void Design(float frequency, float q_factor, float sample_rate) override;
 };
 
-class BiquadBPF : public IBiquadDesign {
+class BiquadBPF : public IBiquad {
 public:
-    void Design(float frequency, float QFactor, float sampleRate) override;
+    void Design(float frequency, float q_factor, float sample_rate) override;
 };
 
-class BiquadNotch : public IBiquadDesign {
+class BiquadNotch : public IBiquad {
 public:
-    void Design(float frequency, float QFactor, float sampleRate) override;
+    void Design(float frequency, float q_factor, float sample_rate) override;
 };
 
-class BiquadAllpass : public IBiquadDesign {
+class BiquadAllpass : public IBiquad {
 public:
-    void Design(float frequency, float QFactor, float sampleRate) override;
+    void Design(float frequency, float q_factor, float sample_rate) override;
 };
 
 

@@ -1,7 +1,7 @@
 #ifndef WAV_FILE_MGR_HPP
 #define WAV_FILE_MGR_HPP
 
-#include "utils.h"
+#include "utils.hpp"
 #include <cstdio>
 #include <cstdint>
 

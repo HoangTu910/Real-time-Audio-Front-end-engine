@@ -1,6 +1,6 @@
-<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.6.6 Chrome/144.0.7559.236 Electron/40.8.4 Safari/537.36" version="29.6.6">
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.6.6 Chrome/144.0.7559.236 Electron/40.8.4 Safari/537.36">
   <diagram name="Page-1" id="xm-WlERMAuZRnxCCRYmW">
-    <mxGraphModel dx="2084" dy="1252" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="1825" dy="581" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -360,6 +360,36 @@
         </mxCell>
         <mxCell id="HWXwSB2Im-Lxnj7_pwkr-143" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;b&gt;Static link&lt;/b&gt;" vertex="1">
           <mxGeometry height="30" width="60" x="1041" y="1548" as="geometry" />
+        </mxCell>
+        <mxCell id="tJ1M1ucict0clZoUwUbi-1" edge="1" parent="1" style="endArrow=none;html=1;rounded=0;strokeColor=#FF0000;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="439" y="760" as="sourcePoint" />
+            <mxPoint x="1047" y="490" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tJ1M1ucict0clZoUwUbi-2" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=#FF0000;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="THIS TRIPLE BUFFER BELONG TO DRIVER LAYER NOT FOR DSP LAYER&amp;nbsp;" vertex="1">
+          <mxGeometry height="30" width="234" x="611" y="451.5" as="geometry" />
+        </mxCell>
+        <mxCell id="tJ1M1ucict0clZoUwUbi-4" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;b&gt;Buffer Pool&lt;/b&gt;" vertex="1">
+          <mxGeometry height="30" width="118" x="53" y="1070" as="geometry" />
+        </mxCell>
+        <mxCell id="tJ1M1ucict0clZoUwUbi-5" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;" value="&lt;b&gt;Requirement For Buffer Pool&lt;/b&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;div style=&quot;text-align: left;&quot;&gt;- Allow 5 blocks size: 64, 128, 256, 512, 1024&lt;/div&gt;&lt;div style=&quot;text-align: left;&quot;&gt;- Maximum memory: 32KB&lt;/div&gt;&lt;div style=&quot;text-align: left;&quot;&gt;- Time complexity for getting a buffer is O(1)&lt;/div&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="103" width="290" x="36" y="1102" as="geometry" />
+        </mxCell>
+        <mxCell id="tJ1M1ucict0clZoUwUbi-7" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Calls to &lt;code&gt;malloc()&lt;/code&gt; and &lt;code&gt;calloc()&lt;/code&gt; are &lt;strong&gt;non-deterministic&lt;/strong&gt;&lt;br/&gt; — the time required to complete memory operations varies based on &lt;br/&gt;current heap state, allocation history, and algorithm complexity.&amp;nbsp;" vertex="1">
+          <mxGeometry height="53" width="372" x="7" y="1003" as="geometry" />
+        </mxCell>
+        <mxCell id="tJ1M1ucict0clZoUwUbi-8" parent="1" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;" value="Why we need&amp;nbsp;&lt;div&gt;buffer pool?&lt;/div&gt;" vertex="1">
+          <mxGeometry height="80" width="120" x="-61" y="933" as="geometry" />
+        </mxCell>
+        <mxCell id="tJ1M1ucict0clZoUwUbi-9" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry height="43" width="191" x="-196" y="1253.5" as="geometry" />
+        </mxCell>
+        <mxCell id="tJ1M1ucict0clZoUwUbi-10" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry height="43" width="191" x="-196" y="1296.5" as="geometry" />
+        </mxCell>
+        <mxCell id="tJ1M1ucict0clZoUwUbi-11" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry height="43" width="191" x="-196" y="1339.5" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>

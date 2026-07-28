@@ -1,6 +1,5 @@
-/* fixedpoint.h — Fixed-point math utilities (saturating ops, Q-format shifts) */
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef UTILS_HPP
+#define UTILS_HPP
 
 #include <stdint.h>
 #include <math.h>
@@ -24,7 +23,7 @@ typedef float    tFloat;
 #define Q2_14_SHIFT 14
 
 #define CLIP_S16(x) ((x) > INT16_MAX ? INT16_MAX : ((x) < INT16_MIN ? INT16_MIN : (s16)(x)))
-
+#define CLIP_S32(x) ((x) > INT32_MAX ? INT32_MAX : ((x) < INT32_MIN ? INT32_MIN : (s32)(x)))
 #define SAMPLING_RATE (48000.0)
 
 #define M_PI		3.14159265358979323846	/* pi */
@@ -35,10 +34,16 @@ typedef float    tFloat;
 #define FE_ERROR(fmt, ...) fprintf(stderr, "ERROR: " fmt, ##__VA_ARGS__)
 
 #ifdef FIXED_POINT
-typedef s16 sample_t;
+typedef tFixed sample_t;
 #else
-typedef float sample_t;
+typedef tFloat sample_t;
 #endif
+
+typedef struct {
+    sample_t *dsp_buffer;
+    u16       block_size;
+    u16       num_channels;
+} DspBlock;
 
 typedef struct sincos_t
 {
@@ -86,4 +91,4 @@ static inline sincos_t fast_sine_cos(float x)
     return out;
 }
 
-#endif  /* UTILS_H */
+#endif  /* UTILS_HPP */

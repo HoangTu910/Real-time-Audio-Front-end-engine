@@ -1,13 +1,12 @@
 #ifndef RTAFE_MAIN_SP_HPP
 #define RTAFE_MAIN_SP_HPP
 
-#include "buffer_mng.hpp"
+#include "buffer_pool.hpp"
 #include "biquad_filter.hpp"
 #include "pre_emphasis.hpp"
 #include "idsp_module.hpp"
 #include "dc_removal.hpp"
-#include "noise_suppress.hpp"
-#include "utils.h"
+#include "utils.hpp"
 
 typedef sample_t tSample;
 
