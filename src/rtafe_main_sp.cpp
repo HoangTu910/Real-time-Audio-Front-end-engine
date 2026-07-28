@@ -1,4 +1,4 @@
-#include "RTAFE_main_sp.hpp"
+#include "rtafe_main_sp.hpp"
 
 RTAFE_Main_SP::RTAFE_Main_SP()
 {

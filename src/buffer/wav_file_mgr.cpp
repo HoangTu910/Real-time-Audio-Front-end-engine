@@ -1,4 +1,4 @@
-#include "WavFileMgr.hpp"
+#include "wav_file_mgr.hpp"
 #include <cstring>
 
 WavFileMgr::WavFileMgr()

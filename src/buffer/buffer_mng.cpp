@@ -1,4 +1,4 @@
-#include "BufferMng.hpp"
+#include "buffer_mng.hpp"
 
 BufferMng::BufferMng(u16 numSampleInBuffer)
 {

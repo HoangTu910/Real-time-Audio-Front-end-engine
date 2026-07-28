@@ -1,4 +1,4 @@
-#include "pre-emphasis.hpp"
+#include "pre_emphasis.hpp"
 
 PreEmphasis::PreEmphasis(float preEmphasisFactor)
     : m_state{}

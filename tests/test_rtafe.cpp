@@ -1,5 +1,5 @@
-#include "RTAFE_main_sp.hpp"
-#include "WavFileMgr.hpp"
+#include "rtafe_main_sp.hpp"
+#include "wav_file_mgr.hpp"
 #include <cstdio>
 
 /* ── Process WAV file through DSP pipeline ── */

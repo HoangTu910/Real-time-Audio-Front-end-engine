@@ -1,9 +1,9 @@
 #ifndef DC_REMOVAL_HPP
 #define DC_REMOVAL_HPP
 
-#include "IDSPModule.hpp"
+#include "idsp_module.hpp"
 #include "utils.h"
-#include "BufferMng.hpp"
+#include "buffer_mng.hpp"
 
 /** Direct form I from Richard Lyons */
 /** Difference equation for Direct Form I

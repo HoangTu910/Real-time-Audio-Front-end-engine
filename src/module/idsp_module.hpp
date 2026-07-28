@@ -1,8 +1,8 @@
 #ifndef IDSPMODULE_HPP
 #define IDSPMODULE_HPP
 
-#include "BufferMng.hpp"
-#include "IBiquadDesign.hpp"
+#include "buffer_mng.hpp"
+#include "i_biquad_design.hpp"
 #include "utils.h"
 
 class IDSPModule {

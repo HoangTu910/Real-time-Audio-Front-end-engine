@@ -9,16 +9,16 @@ TARGET_ARM = $(BIN_DIR)/arm_test_rtafe
 # Source files for test_rtafe
 # =========================
 CPP_SRCS = tests/test_rtafe.cpp \
-           $(SRC_DIR)/RTAFE_main_sp.cpp \
-           $(SRC_DIR)/RTAFE_main_ap.cpp \
-           $(SRC_DIR)/buffer/BufferMng.cpp \
-           $(SRC_DIR)/buffer/WavFileMgr.cpp \
-           $(SRC_DIR)/biquad/BiquadFilter.cpp \
-           $(SRC_DIR)/biquad/IBiquadDesign.cpp \
+           $(SRC_DIR)/rtafe_main_sp.cpp \
+           $(SRC_DIR)/rtafe_main_ap.cpp \
+           $(SRC_DIR)/buffer/buffer_mng.cpp \
+           $(SRC_DIR)/buffer/wav_file_mgr.cpp \
+           $(SRC_DIR)/biquad/biquad_filter.cpp \
+           $(SRC_DIR)/biquad/i_biquad_design.cpp \
            $(SRC_DIR)/module/noise_suppress.cpp \
            $(SRC_DIR)/module/dc_removal.cpp \
-           $(SRC_DIR)/module/pre-emphasis.cpp \
-           $(SRC_DIR)/module/IDSPModule.cpp
+           $(SRC_DIR)/module/pre_emphasis.cpp \
+           $(SRC_DIR)/module/idsp_module.cpp
 
 C_SRCS = $(SRC_DIR)/module/fft.c
 

@@ -51,9 +51,9 @@
  * N(f) is the estimated noise spectrum, Y(f) is the noisy spectrum, 
  * alpha is the over-subtraction factor, and beta is the spectral floor to prevent musical noise */
 
-#include "IDSPModule.hpp"
+#include "idsp_module.hpp"
 #include "utils.h"
-#include "BufferMng.hpp"
+#include "buffer_mng.hpp"
 #include "fft.h"
 
 /**

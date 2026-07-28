@@ -1,7 +1,7 @@
 #ifndef PRE_EMPHASIS_HPP
 #define PRE_EMPHASIS_HPP
 
-#include "IDSPModule.hpp"
+#include "idsp_module.hpp"
 
 struct PreEmState {
     float x[2];

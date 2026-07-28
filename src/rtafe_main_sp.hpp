@@ -1,10 +1,10 @@
 #ifndef RTAFE_MAIN_SP_HPP
 #define RTAFE_MAIN_SP_HPP
 
-#include "BufferMng.hpp"
-#include "BiquadFilter.hpp"
-#include "pre-emphasis.hpp"
-#include "IDSPModule.hpp"
+#include "buffer_mng.hpp"
+#include "biquad_filter.hpp"
+#include "pre_emphasis.hpp"
+#include "idsp_module.hpp"
 #include "dc_removal.hpp"
 #include "noise_suppress.hpp"
 #include "utils.h"

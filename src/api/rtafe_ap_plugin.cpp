@@ -1,4 +1,4 @@
-#include "RTAFE_AP_plugin.hpp"
+#include "rtafe_ap_plugin.hpp"
 
 static RTAFE_Main_AP gRTAFE_Main_AP_Instance;
 extern "C" {

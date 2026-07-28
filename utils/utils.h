@@ -5,16 +5,16 @@
 #include <stdint.h>
 #include <math.h>
 
-typedef uint8_t u8;
+typedef uint8_t  u8;
 typedef uint32_t u32;
 typedef uint16_t u16;
-typedef int32_t s32;
-typedef int16_t s16;
-typedef int8_t s8;
+typedef int32_t  s32;
+typedef int16_t  s16;
+typedef int8_t   s8;
 typedef uint64_t u64;
-typedef int64_t s64;
-typedef s32 tFixedPoint;
-typedef float tFloatingPoint;
+typedef int64_t  s64;
+typedef s32      tFixed;
+typedef float    tFloat;
 
 #define FLOAT_TO_Q15(x) ((s16)((x) * 32768.0f))
 #define FLOAT_TO_Q31(x) ((s32)((x) * 2147483648.0f))
@@ -25,7 +25,7 @@ typedef float tFloatingPoint;
 
 #define CLIP_S16(x) ((x) > INT16_MAX ? INT16_MAX : ((x) < INT16_MIN ? INT16_MIN : (s16)(x)))
 
-#define SAMPLING_RATE (16000.0)
+#define SAMPLING_RATE (48000.0)
 
 #define M_PI		3.14159265358979323846	/* pi */
 #define M_PI_2		1.57079632679489661923	/* pi/2 */

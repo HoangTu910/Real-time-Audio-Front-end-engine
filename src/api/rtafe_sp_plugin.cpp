@@ -1,5 +1,5 @@
-#include "RTAFE_main_sp.hpp"
-#include "RTAFE_SP_plugin.hpp"
+#include "rtafe_main_sp.hpp"
+#include "rtafe_sp_plugin.hpp"
 
 static RTAFE_Main_SP gRTAFE_Main_SP_Instance;
 

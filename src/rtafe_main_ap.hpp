@@ -1,8 +1,8 @@
 #ifndef RTAFE_MAIN_AP_HPP
 #define RTAFE_MAIN_AP_HPP
 
-#include "BufferMng.hpp"
-#include "BiquadFilter.hpp"
+#include "buffer_mng.hpp"
+#include "biquad_filter.hpp"
 #include "utils.h"
 
 /* signal processing pipeline */
