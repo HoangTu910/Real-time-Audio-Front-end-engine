@@ -1,20 +1,19 @@
-/* fixedpoint.h — Fixed-point math utilities (saturating ops, Q-format shifts) */
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef UTILS_HPP
+#define UTILS_HPP
 
 #include <stdint.h>
 #include <math.h>
 
-typedef uint8_t u8;
+typedef uint8_t  u8;
 typedef uint32_t u32;
 typedef uint16_t u16;
-typedef int32_t s32;
-typedef int16_t s16;
-typedef int8_t s8;
+typedef int32_t  s32;
+typedef int16_t  s16;
+typedef int8_t   s8;
 typedef uint64_t u64;
-typedef int64_t s64;
-typedef s32 tFixedPoint;
-typedef float tFloatingPoint;
+typedef int64_t  s64;
+typedef s32      tFixed;
+typedef float    tFloat;
 
 #define FLOAT_TO_Q15(x) ((s16)((x) * 32768.0f))
 #define FLOAT_TO_Q31(x) ((s32)((x) * 2147483648.0f))
@@ -24,8 +23,8 @@ typedef float tFloatingPoint;
 #define Q2_14_SHIFT 14
 
 #define CLIP_S16(x) ((x) > INT16_MAX ? INT16_MAX : ((x) < INT16_MIN ? INT16_MIN : (s16)(x)))
-
-#define SAMPLING_RATE (16000.0)
+#define CLIP_S32(x) ((x) > INT32_MAX ? INT32_MAX : ((x) < INT32_MIN ? INT32_MIN : (s32)(x)))
+#define SAMPLING_RATE (48000.0)
 
 #define M_PI		3.14159265358979323846	/* pi */
 #define M_PI_2		1.57079632679489661923	/* pi/2 */
@@ -35,15 +34,21 @@ typedef float tFloatingPoint;
 #define FE_ERROR(fmt, ...) fprintf(stderr, "ERROR: " fmt, ##__VA_ARGS__)
 
 #ifdef FIXED_POINT
-typedef s16 sample_t;
+typedef tFixed sample_t;
 #else
-typedef float sample_t;
+typedef tFloat sample_t;
 #endif
 
-typedef struct sincos
+typedef struct {
+    sample_t *dsp_buffer;
+    u16       block_size;
+    u16       num_channels;
+} DspBlock;
+
+typedef struct sincos_t
 {
     float sin, cos;
-} sincos;
+} sincos_t;
 
 static inline float fast_sin_poly(float x)
 {
@@ -52,7 +57,7 @@ static inline float fast_sin_poly(float x)
     return x * (0.98786f + x2 * (-0.15527f + x2 * 0.005643f));
 }
 
-static inline sincos fast_sine_cos(float x)
+static inline sincos_t fast_sine_cos(float x)
 {
     // Range reduce to [-pi, pi]
     const float inv_two_pi = 0.15915494309189535f; // 1 / (2*pi)
@@ -79,11 +84,11 @@ static inline sincos fast_sine_cos(float x)
     float sin_poly = x * (1.0f + x2 * (-0.16666667f + x2 * 0.0083333310f));
     float cos_poly = 1.0f + x2 * (-0.5f + x2 * 0.041666638f);
 
-    sincos out;
+    sincos_t out;
     out.sin = sign_sin * sin_poly;
     out.cos = sign_cos * cos_poly;
 
     return out;
 }
 
-#endif  /* UTILS_H */
+#endif  /* UTILS_HPP */

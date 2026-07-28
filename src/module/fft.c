@@ -4,14 +4,14 @@
 
 void hamming_window(float *x, int N) {
     for (int n = 0; n < N; n++) {
-        sincos sc = fast_sine_cos(2.0f * M_PI * n / (N - 1));
+        sincos_t sc = fast_sine_cos(2.0f * M_PI * n / (N - 1));
         x[n] *= 0.54f - 0.46f * sc.cos;
     }
  }
 
 void hanning_window(float *x, int N) {
     for (int n = 0; n < N; n++) {
-        sincos sc = fast_sine_cos(2.0f * M_PI * n / (N - 1));
+        sincos_t sc = fast_sine_cos(2.0f * M_PI * n / (N - 1));
         x[n] *= 0.5f * (1.0f - sc.cos);
     }
  }
@@ -59,7 +59,7 @@ void fft(complex_t *x, int N) {
     if (!twiddle_init) {
         for (int k = 0; k < 256; k++) {
             float angle = -2.0f * (float)M_PI * (float)k / 512.0f;
-            sincos sc = fast_sine_cos(angle);
+            sincos_t sc = fast_sine_cos(angle);
             twiddle[k].real = sc.cos;
             twiddle[k].imag = sc.sin;
         }
@@ -128,7 +128,7 @@ int fft_fixed(complex_fixed_t *x, int N) {
     if (!twiddle_init) {
         for (int k = 0; k < 256; k++) {
             float angle = -2.0f * (float)M_PI * (float)k / 512.0f;
-            sincos sc = fast_sine_cos(angle);
+            sincos_t sc = fast_sine_cos(angle);
             twiddle[k].real = FLOAT_TO_Q2_14(sc.cos);
             twiddle[k].imag = FLOAT_TO_Q2_14(sc.sin);
         }
@@ -199,7 +199,7 @@ int fft_fixed_bfp(complex_fixed_t *x, int N, int *scale_shift) {
     if (!twiddle_init) {
         for (int k = 0; k < 256; k++) {
             float angle = -2.0f * (float)M_PI * (float)k / 512.0f;
-            sincos sc = fast_sine_cos(angle);
+            sincos_t sc = fast_sine_cos(angle);
             twiddle[k].real = FLOAT_TO_Q2_14(sc.cos);
             twiddle[k].imag = FLOAT_TO_Q2_14(sc.sin);
         }

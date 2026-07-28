@@ -1,3 +1,6 @@
+#ifndef NOISE_SUPPRESS_HPP
+#define NOISE_SUPPRESS_HPP
+
 /**
  * basic model of noise suppresion
  * x[n] = s[n] + noise[n]
@@ -47,18 +50,58 @@
  * G(f) = max(beta, 1 - alpha (|N(f)| / |Y(f)|)) for magnitude subtraction
  * N(f) is the estimated noise spectrum, Y(f) is the noisy spectrum, 
  * alpha is the over-subtraction factor, and beta is the spectral floor to prevent musical noise */
- 
-#ifndef NOISE_SUPPRESS_H
-#define NOISE_SUPPRESS_H
-#include <stdio.h>
+
+#include "idsp_module.hpp"
+#include "utils.hpp"
+#include "buffer_pool.hpp"
 #include "fft.h"
 
-typedef struct {
-    u32 sample_rate;
-    u32 frame_size_samples;
-} noise_suppress_t;
+/**
+ * Spectral Subtraction Noise Suppression
+ *
+ * Model: x[n] = s[n] + noise[n]
+ *
+ * Gain function (magnitude subtraction):
+ *   G(f) = max(beta, 1 - alpha * |N(f)| / |Y(f)|)
+ *
+ * Steps:
+ *   1. STFT: y[n] -> Y(f)
+ *   2. Estimate noise spectrum N(f) via minimum statistics
+ *   3. Compute gain G(f) and apply: S(f) = G(f) * Y(f)
+ *   4. iSTFT: S(f) -> s^[n]
+ */
+#define MINSTAT_WINDOW 30 
+#define MAX_FRAME_SIZE 512
+#define ALPHA_SMOOTH   0.8f      // smoothing
+#define BETA_FLOOR     0.02f     // spectral floor
+#define BIAS_CORR      1.5f      // bias compensation (approx)
 
-void process_noise_suppression(float *input, noise_suppress_t *ns);
-void process_noise_suppression_fixed(s16 *input, noise_suppress_t *ns);
+typedef struct MinStatState {
+    float pSmooth[512];
+    bool bInitialized;
+    int lastFrameSize;
+    float minBuffer[MINSTAT_WINDOW][MAX_FRAME_SIZE];
+    int   minBufIdx = 0;
+    int   minBufCount = 0;
+} MinStatState;
 
-#endif
+class NoiseSuppress : public IDSPModule {
+public:
+    NoiseSuppress();
+    ~NoiseSuppress() override = default;
+
+    void vProcessBlock(DspBlock *dsp_block) override;
+    void vProcessBlockFix(DspBlock *dsp_block) override;
+
+private:
+    /* 50% overlap-add state */
+    float m_overlapIn[MAX_FRAME_SIZE / 2];   /* input overlap: last N/2 of previous input */
+    float m_overlapOut[MAX_FRAME_SIZE / 2];  /* output OLA: last N/2 of previous iFFT */
+
+    /* minimum statistics noise estimation state */
+    MinStatState m_minStatState;
+
+    void vInitNoiseState(int frameSize);
+};
+
+#endif /* NOISE_SUPPRESS_HPP */
