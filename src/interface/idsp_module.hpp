@@ -2,8 +2,9 @@
 #define IDSPMODULE_HPP
 
 #include "buffer_pool.hpp"
-#include "i_biquad_design.hpp"
+#include "ibiquad.hpp"
 #include "utils.hpp"
+#include "dsp_block.hpp"
 
 class IDSPModule {
 public:

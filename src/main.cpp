@@ -25,42 +25,21 @@ static void processWavFile(const char *inputFile, const char *outputFile)
         return;
     }
 
-    DSPPipeline pipelines[WavFileMgr::MAX_CHANNELS];
-    DCRemoval dcRemoval[WavFileMgr::MAX_CHANNELS];
-    PreEmphasis preEmphasis[WavFileMgr::MAX_CHANNELS];
-    NoiseSuppress noiseSuppress[WavFileMgr::MAX_CHANNELS];
-
-    for (u16 ch = 0; ch < numChannels; ++ch) {
-        pipelines[ch].AddModule(&dcRemoval[ch]);
-        pipelines[ch].AddModule(&preEmphasis[ch]);
-        pipelines[ch].AddModule(&noiseSuppress[ch]);
-    }
-
     if (!wav.bOpenWrite(outputFile)) {
         std::printf("Failed to open output WAV file\n");
         wav.vCloseRead();
         return;
     }
 
+    DSPPipeline dsp_pipeline;
     while (wav.bHasNextFrame()) {
         sample_t **channels = wav.ppReadFrame();
         if (!channels) {
             break;
         }
 
-        for (u16 ch = 0; ch < numChannels; ++ch) {
-            DSPBlock firstHalf;
-            firstHalf.dsp_buffer = channels[ch];
-            firstHalf.block_size = hopSize;
-            firstHalf.num_channels = 1;
-            pipelines[ch].Process(&firstHalf);
-
-            DSPBlock secondHalf;
-            secondHalf.dsp_buffer = channels[ch] + hopSize;
-            secondHalf.block_size = hopSize;
-            secondHalf.num_channels = 1;
-            pipelines[ch].Process(&secondHalf);
-        }
+        /* still need to clarify again, only specific channel as input is allowed */
+        dsp_pipeline.Process(channels[0]);
 
         wav.vWriteFrame(channels, frameSize);
     }

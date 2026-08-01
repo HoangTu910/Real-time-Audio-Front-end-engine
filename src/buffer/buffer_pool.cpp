@@ -1,5 +1,15 @@
 #include "buffer_pool.hpp"
 
+BufferPool::BufferPool()
+{
+    mem_pool_ = new MemoryPool();
+}
+
+BufferPool::~BufferPool()
+{
+    delete mem_pool_;
+}
+
 void BufferPool::InitMemoryPool(u16 block_size, u16 num_blocks)
 {
     mem_pool_->block_size = block_size;
@@ -20,7 +30,7 @@ void BufferPool::InitMemoryPool(u16 block_size, u16 num_blocks)
 void *BufferPool::Alloc()
 {
     if(mem_pool_->free_list_buffer == nullptr) {
-        return nullptr; // No free buffers available
+        return nullptr;
     }
 
     FreeBuffer *buffer = mem_pool_->free_list_buffer;

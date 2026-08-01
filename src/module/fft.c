@@ -1,5 +1,5 @@
  #include "module/fft.h"
- #include "utils.h"
+ #include "utils.hpp"
  #include <math.h>
 
 void hamming_window(float *x, int N) {

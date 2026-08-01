@@ -3,6 +3,7 @@
 
 #include "utils.hpp"
 #include "buffer_pool.hpp"
+#include "dsp_block.hpp"
 
 typedef enum {
     BIQUAD_LPF,

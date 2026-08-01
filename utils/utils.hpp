@@ -33,17 +33,21 @@ typedef float    tFloat;
 #define FE_WARN(fmt, ...) fprintf(stderr, "WARN: " fmt, ##__VA_ARGS__)
 #define FE_ERROR(fmt, ...) fprintf(stderr, "ERROR: " fmt, ##__VA_ARGS__)
 
+#define SIZE_OF_DSP_SAMPLE sizeof(sample_t)
+
 #ifdef FIXED_POINT
 typedef tFixed sample_t;
 #else
 typedef tFloat sample_t;
 #endif
 
-typedef struct {
-    sample_t *dsp_buffer;
-    u16       block_size;
-    u16       num_channels;
-} DSPBlock;
+enum ChannelId : u16 {
+    kLeftFront  = 0,
+    kRightFront = 1,
+    kLeftRear   = 2,
+    kRightRear  = 3,
+    kCenter     = 4,
+};
 
 typedef struct sincos_t
 {

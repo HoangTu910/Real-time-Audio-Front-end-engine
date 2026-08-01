@@ -3,6 +3,9 @@
 
 #include "utils.hpp"
 
+#define BLOCK_SIZE 512
+#define NUM_BLOCKS 10
+
 typedef struct FreeBuffer {
     // Points to the next free buffer in the pool.
     FreeBuffer *next = nullptr;

@@ -4,6 +4,7 @@
 #include "idsp_module.hpp"
 #include "utils.hpp"
 #include "buffer_pool.hpp"
+#include "dsp_block.hpp"
 
 /** Direct form I from Richard Lyons */
 /** Difference equation for Direct Form I

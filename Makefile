@@ -14,15 +14,22 @@ CPP_SRCS = tests/test_rtafe.cpp \
            $(SRC_DIR)/buffer/buffer_mng.cpp \
            $(SRC_DIR)/buffer/wav_file_mgr.cpp \
            $(SRC_DIR)/biquad/biquad_filter.cpp \
-           $(SRC_DIR)/biquad/i_biquad_design.cpp \
            $(SRC_DIR)/module/noise_suppress.cpp \
            $(SRC_DIR)/module/dc_removal.cpp \
            $(SRC_DIR)/module/pre_emphasis.cpp \
-           $(SRC_DIR)/module/idsp_module.cpp
+           $(SRC_DIR)/interface/ibiquad.cpp \
+           $(SRC_DIR)/interface/idsp_module.cpp
 
 C_SRCS = $(SRC_DIR)/module/fft.c
 
-INC_DIRS = -I$(SRC_DIR) -I$(UTILS_DIR) -I$(SRC_DIR)/biquad -I$(SRC_DIR)/module -I$(SRC_DIR)/buffer -I$(SRC_DIR)/api -I$(SRC_DIR)/pipeline
+INC_DIRS = -I$(SRC_DIR) \
+           -I$(UTILS_DIR) \
+           -I$(SRC_DIR)/biquad \
+           -I$(SRC_DIR)/module \
+           -I$(SRC_DIR)/buffer \
+           -I$(SRC_DIR)/api \
+           -I$(SRC_DIR)/pipeline \
+           -I$(SRC_DIR)/interface
 
 # =========================
 # Host compiler (x86)

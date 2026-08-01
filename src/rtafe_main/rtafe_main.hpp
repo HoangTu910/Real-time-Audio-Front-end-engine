@@ -2,7 +2,7 @@
 #define RTAFE_MAIN_SP_HPP
 
 #include "buffer_pool.hpp"
-#include "i_biquad_design.hpp"
+#include "ibiquad.hpp"
 #include "idsp_module.hpp"
 #include "dsp_pipeline.hpp"
 #include "utils.hpp"

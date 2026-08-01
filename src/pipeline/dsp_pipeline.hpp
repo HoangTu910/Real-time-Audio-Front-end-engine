@@ -6,15 +6,16 @@
 
 class DSPPipeline {
 public:
-    DSPPipeline() = default;
-    ~DSPPipeline() = default;
+    DSPPipeline();
+    ~DSPPipeline();
 
     void AddModule(IDSPModule *module);
-    void Process(DSPBlock *dsp_block);
-    void ProcessFixed(DSPBlock *dsp_block);
+    void Process(sample_t *in_buf);
+    void ProcessFixed(sample_t *in_buf);
 
 private:
     std::vector<IDSPModule*> modules_;
+    BufferPool               buffer_pool_;
 };
 
 #endif /* DSP_PIPELINE_HPP */
