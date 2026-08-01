@@ -1,15 +1,5 @@
 #include "dsp_block.hpp"
 
-DSPBlock::DSPBlock()
-{
-
-}
-
-DSPBlock::~DSPBlock()
-{
-    delete buffer_pool_;
-}
-
 void DSPBlock::SetDSPBlock(sample_t *buffer, u16 block_size, u16 channel_id)
 {
     this->dsp_buffer_  = buffer;

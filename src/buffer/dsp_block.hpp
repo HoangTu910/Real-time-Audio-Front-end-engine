@@ -2,12 +2,12 @@
 #define DSP_BLOCK_HPP
 
 #include "utils.hpp"
-#include "buffer_pool.hpp"
+#include "buffer_manager.hpp"
 
 class DSPBlock {
 public:
-    DSPBlock();
-    ~DSPBlock();
+    DSPBlock()  = default;
+    ~DSPBlock() = default;
     void SetDSPBlock(sample_t *buffer, u16 block_size, u16 channel_id);
 
     sample_t *GetDSPBuffer();

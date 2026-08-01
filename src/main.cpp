@@ -1,8 +1,5 @@
 #include "api/wav_manager/wav_file_mgr.hpp"
-#include "module/dc_removal.hpp"
-#include "module/noise_suppress.hpp"
-#include "module/pre_emphasis.hpp"
-#include "pipeline/dsp_pipeline.hpp"
+#include "rtafe_main.hpp"
 #include "utils.hpp"
 
 #include <cstdio>
@@ -31,15 +28,19 @@ static void processWavFile(const char *inputFile, const char *outputFile)
         return;
     }
 
-    DSPPipeline dsp_pipeline;
+    RTAFE_DSPMain dsp_main;
     while (wav.bHasNextFrame()) {
         sample_t **channels = wav.ppReadFrame();
         if (!channels) {
             break;
         }
 
+        if(frameSize != REQUIRED_BLOCK_SIZE) {
+            std::printf("Frame size mismatch: expected %u, got %u\n", REQUIRED_BLOCK_SIZE, frameSize);
+            break;
+        }
         /* still need to clarify again, only specific channel as input is allowed */
-        dsp_pipeline.Process(channels[0]);
+        dsp_main.ProcessDSPBlock(channels[0]);
 
         wav.vWriteFrame(channels, frameSize);
     }

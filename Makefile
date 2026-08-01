@@ -11,7 +11,7 @@ TARGET_ARM = $(BIN_DIR)/arm_test_rtafe
 CPP_SRCS = tests/test_rtafe.cpp \
            $(SRC_DIR)/rtafe_main_sp.cpp \
            $(SRC_DIR)/rtafe_main_ap.cpp \
-           $(SRC_DIR)/buffer/buffer_mng.cpp \
+           $(SRC_DIR)/buffer/buffer_manager.cpp \
            $(SRC_DIR)/buffer/wav_file_mgr.cpp \
            $(SRC_DIR)/biquad/biquad_filter.cpp \
            $(SRC_DIR)/module/noise_suppress.cpp \
@@ -23,13 +23,13 @@ CPP_SRCS = tests/test_rtafe.cpp \
 C_SRCS = $(SRC_DIR)/module/fft.c
 
 INC_DIRS = -I$(SRC_DIR) \
-           -I$(UTILS_DIR) \
            -I$(SRC_DIR)/biquad \
            -I$(SRC_DIR)/module \
            -I$(SRC_DIR)/buffer \
            -I$(SRC_DIR)/api \
            -I$(SRC_DIR)/pipeline \
-           -I$(SRC_DIR)/interface
+           -I$(SRC_DIR)/interface \
+           -I$(UTILS_DIR) \
 
 # =========================
 # Host compiler (x86)

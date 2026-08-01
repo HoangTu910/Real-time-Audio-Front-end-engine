@@ -22,9 +22,10 @@ void NoiseSuppress::InitNoiseState(int frame_size)
 
 void NoiseSuppress::ProcessBlock(DSPBlock *dsp_block)
 {
-    if (dsp_block == nullptr || dsp_block->dsp_buffer == nullptr) return;
+    sample_t *in_buf = dsp_block->GetDSPBuffer();
+    if (dsp_block == nullptr || in_buf == nullptr) return;
 
-    const int hop = (int)dsp_block->block_size;  /* caller provides hop-sized buffer (N/2) */
+    const int hop = (int)dsp_block->GetBlockSize();  /* caller provides hop-sized buffer (N/2) */
     if (hop != MAX_FRAME_SIZE / 2) {
 #ifndef RELEASE_BUILD
         printf("Noise suppression: only hop=256 supported (N=512 FFT), got %d. Skipping.\n", hop);
@@ -42,10 +43,10 @@ void NoiseSuppress::ProcessBlock(DSPBlock *dsp_block)
         windowed[i] = overlap_in_[i];                            /* first half: previous tail */
     }
     for (int i = 0; i < hop; i++) {
-        windowed[hop + i] = (float)dsp_block->dsp_buffer[i];   /* second half: new input */
+        windowed[hop + i] = (float)in_buf[i];   /* second half: new input */
     }
     for (int i = 0; i < hop; i++) {
-        overlap_in_[i] = (float)dsp_block->dsp_buffer[i];      /* save input for next frame */
+        overlap_in_[i] = (float)in_buf[i];      /* save input for next frame */
     }
 
     /* 2. Analysis Hann window to reduce spectral leakage */
@@ -137,7 +138,7 @@ void NoiseSuppress::ProcessBlock(DSPBlock *dsp_block)
      * - Output N/2 reconstructed samples */
     for (int i = 0; i < hop; i++) {
         float ola_sample = S[i].real + overlap_out_[i];
-        dsp_block->dsp_buffer[i] = (sample_t)ola_sample;
+        in_buf[i] = (sample_t)ola_sample;
     }
     for (int i = 0; i < hop; i++) {
         overlap_out_[i] = S[hop + i].real;  /* save tail for next OLA */

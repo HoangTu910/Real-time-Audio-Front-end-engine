@@ -4,7 +4,7 @@
 #include "utils.hpp"
 
 #define BLOCK_SIZE 512
-#define NUM_BLOCKS 10
+#define NUM_BLOCKS 128
 
 typedef struct FreeBuffer {
     // Points to the next free buffer in the pool.
@@ -18,10 +18,10 @@ typedef struct MemoryPool {
     u16         num_blocks;
 } MemoryPool;
 
-class BufferPool {
+class BufferManager {
 public:
-    BufferPool();
-    ~BufferPool();
+    BufferManager();
+    ~BufferManager();
 
     void  InitMemoryPool(u16 block_size, u16 num_blocks);
     void* Alloc();

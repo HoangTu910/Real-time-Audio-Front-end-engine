@@ -42,11 +42,12 @@ typedef tFloat sample_t;
 #endif
 
 enum ChannelId : u16 {
-    kLeftFront  = 0,
-    kRightFront = 1,
-    kLeftRear   = 2,
-    kRightRear  = 3,
-    kCenter     = 4,
+    kMono,
+    kLeftFront,
+    kRightFront,
+    kLeftRear,
+    kRightRear,
+    kCenter
 };
 
 typedef struct sincos_t

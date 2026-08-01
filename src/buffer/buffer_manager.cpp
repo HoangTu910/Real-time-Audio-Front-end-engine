@@ -1,16 +1,16 @@
-#include "buffer_pool.hpp"
+#include "buffer_manager.hpp"
 
-BufferPool::BufferPool()
+BufferManager::BufferManager()
 {
     mem_pool_ = new MemoryPool();
 }
 
-BufferPool::~BufferPool()
+BufferManager::~BufferManager()
 {
     delete mem_pool_;
 }
 
-void BufferPool::InitMemoryPool(u16 block_size, u16 num_blocks)
+void BufferManager::InitMemoryPool(u16 block_size, u16 num_blocks)
 {
     mem_pool_->block_size = block_size;
     mem_pool_->num_blocks = num_blocks;
@@ -27,7 +27,7 @@ void BufferPool::InitMemoryPool(u16 block_size, u16 num_blocks)
     }
 }
 
-void *BufferPool::Alloc()
+void *BufferManager::Alloc()
 {
     if(mem_pool_->free_list_buffer == nullptr) {
         return nullptr;
@@ -39,7 +39,7 @@ void *BufferPool::Alloc()
     return (void*)buffer;
 }
 
-void BufferPool::Free(void *buffer)
+void BufferManager::Free(void *buffer)
 {
     if(buffer == nullptr) {
         return;

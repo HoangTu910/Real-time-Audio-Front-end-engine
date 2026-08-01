@@ -53,7 +53,6 @@
 
 #include "idsp_module.hpp"
 #include "utils.hpp"
-#include "buffer_pool.hpp"
 #include "fft.h"
 
 /**

@@ -1,7 +1,7 @@
 #ifndef RTAFE_ERRORS_CODE_HPP
 #define RTAFE_ERRORS_CODE_HPP
 
-typedef enum RtafeError {
+typedef enum RtafeErrRet {
     kOk = 0,
     kErrorInvalidParam,
     kErrorFileIO,
@@ -10,6 +10,6 @@ typedef enum RtafeError {
     kErrorProcessing,
     kErrorInitAudioInputFailed,
     kErrorInitAudioOutputFailed
-} RtafeError;
+} RtafeErrRet;
 
 #endif /* RTAFE_ERRORS_CODE_HPP */   

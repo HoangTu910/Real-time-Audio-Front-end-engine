@@ -1,20 +1,10 @@
 #include "rtafe_main.hpp"
 
-RTAFE_DSPMain::RTAFE_DSPMain()
-{
-    dsp_pipeline = new DSPPipeline();
-}
-
-RTAFE_DSPMain::~RTAFE_DSPMain()
-{
-    delete dsp_pipeline;
-}
-
-void RTAFE_DSPMain::ProcessDSPBlock(DSPBlock *dsp_block)
+RtafeErrRet RTAFE_DSPMain::ProcessDSPBlock(sample_t *in_buf)
 {
     #ifdef FIXED_POINT
-        dsp_pipeline->ProcessFixed(dsp_block);
+        dsp_pipeline.ProcessFixed(in_buf);
     #else
-        dsp_pipeline->Process(dsp_block);
+        dsp_pipeline.Process(in_buf);
     #endif
 }
