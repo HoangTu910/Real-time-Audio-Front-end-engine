@@ -3,8 +3,9 @@
 
 #include "utils.hpp"
 
-typedef struct FreeBuffer{
-    FreeBuffer *next;
+typedef struct FreeBuffer {
+    // Points to the next free buffer in the pool.
+    FreeBuffer *next = nullptr;
 } FreeBuffer;
 
 typedef struct MemoryPool {
@@ -19,7 +20,9 @@ public:
     BufferPool();
     ~BufferPool();
 
-    void InitMemoryPool(u16 block_size, u16 num_blocks);
+    void  InitMemoryPool(u16 block_size, u16 num_blocks);
+    void* Alloc();
+    void  Free(void *buffer);
 private:
     MemoryPool *mem_pool_;
 };

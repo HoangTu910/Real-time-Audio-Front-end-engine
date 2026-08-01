@@ -22,7 +22,7 @@ CPP_SRCS = tests/test_rtafe.cpp \
 
 C_SRCS = $(SRC_DIR)/module/fft.c
 
-INC_DIRS = -I$(SRC_DIR) -I$(UTILS_DIR) -I$(SRC_DIR)/biquad -I$(SRC_DIR)/module -I$(SRC_DIR)/buffer -I$(SRC_DIR)/api
+INC_DIRS = -I$(SRC_DIR) -I$(UTILS_DIR) -I$(SRC_DIR)/biquad -I$(SRC_DIR)/module -I$(SRC_DIR)/buffer -I$(SRC_DIR)/api -I$(SRC_DIR)/pipeline
 
 # =========================
 # Host compiler (x86)

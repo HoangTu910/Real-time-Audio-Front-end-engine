@@ -8,8 +8,8 @@
 class IDSPModule {
 public:
     virtual ~IDSPModule() = default;
-    virtual void vProcessBlock(DspBlock *dsp_block) = 0;
-    virtual void vProcessBlockFix(DspBlock *dsp_block) {};
+    virtual void ProcessBlock(DSPBlock *dsp_block) = 0;
+    virtual void ProcessBlockFixed(DSPBlock *dsp_block) = 0;
 };
 
 #endif /* IDSPMODULE_HPP */

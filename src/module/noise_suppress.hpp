@@ -77,12 +77,12 @@
 #define BIAS_CORR      1.5f      // bias compensation (approx)
 
 typedef struct MinStatState {
-    float pSmooth[512];
-    bool bInitialized;
-    int lastFrameSize;
-    float minBuffer[MINSTAT_WINDOW][MAX_FRAME_SIZE];
-    int   minBufIdx = 0;
-    int   minBufCount = 0;
+    float smooth[512];
+    bool  is_initialized;
+    int   last_frame_size;
+    float min_buffer[MINSTAT_WINDOW][MAX_FRAME_SIZE];
+    int   min_buf_idx = 0;
+    int   min_buf_cnt = 0;
 } MinStatState;
 
 class NoiseSuppress : public IDSPModule {
@@ -90,18 +90,18 @@ public:
     NoiseSuppress();
     ~NoiseSuppress() override = default;
 
-    void vProcessBlock(DspBlock *dsp_block) override;
-    void vProcessBlockFix(DspBlock *dsp_block) override;
+    void ProcessBlock(DSPBlock *dsp_block) override;
+    void ProcessBlockFixed(DSPBlock *dsp_block) override;
 
 private:
     /* 50% overlap-add state */
-    float m_overlapIn[MAX_FRAME_SIZE / 2];   /* input overlap: last N/2 of previous input */
-    float m_overlapOut[MAX_FRAME_SIZE / 2];  /* output OLA: last N/2 of previous iFFT */
+    float overlap_in_[MAX_FRAME_SIZE / 2];   /* input overlap: last N/2 of previous input */
+    float overlap_out_[MAX_FRAME_SIZE / 2];  /* output OLA: last N/2 of previous iFFT */
 
     /* minimum statistics noise estimation state */
-    MinStatState m_minStatState;
+    MinStatState min_stat_state_;
 
-    void vInitNoiseState(int frameSize);
+    void InitNoiseState(int frame_size);
 };
 
 #endif /* NOISE_SUPPRESS_HPP */

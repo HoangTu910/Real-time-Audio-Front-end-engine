@@ -38,8 +38,8 @@ public:
     virtual ~IBiquad() = default;
 
     virtual void Design(float frequency, float q_factor, float sample_rate) = 0;
-    virtual void ProcessBlock(DspBlock /* to be defined */ *process_buf);
-    virtual void ProcessBlockFixed(DspBlock /* to be defined */ *process_buf);
+    virtual void ProcessBlock(DSPBlock *dsp_block);
+    virtual void ProcessBlockFixed(DSPBlock *dsp_block);
 protected:
     BiquadCoeffs      biquad_coeffs_;
     BiquadState       biquad_state_;

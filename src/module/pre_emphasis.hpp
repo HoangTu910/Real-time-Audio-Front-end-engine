@@ -10,15 +10,17 @@ struct PreEmState {
 
 class PreEmphasis : public IDSPModule {
 public:
-    PreEmphasis(float preEmphasisFactor = 0.97f);
+    PreEmphasis(float pre_emphasis_factor = 0.97f);
     ~PreEmphasis() override = default;
-    void vProcessBlock(DspBlock *dsp_block) override;
-    void vProcessBlockFix(DspBlock *dsp_block) override;
-    void vSetCoeffs(float preEmphasisFactor);
+
+    void ProcessBlock(DSPBlock *dsp_block) override;
+    void ProcessBlockFixed(DSPBlock *dsp_block) override;
+
+    void SetCoeffs(float pre_emphasis_factor);
 private:
-    PreEmState m_state;
-    float m_alpha;
-    s32 m_alpha_fixed;
+    PreEmState state_;
+    float      alpha_;
+    s32        alpha_fixed_;
 };
 
 #endif /* PRE_EMPHASIS_HPP */

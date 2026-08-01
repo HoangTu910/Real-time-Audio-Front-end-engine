@@ -6,40 +6,40 @@
  */
 
 DCRemoval::DCRemoval(float alpha)
-    : m_alpha(0.0f)
-    , m_alpha_fixed(0)
-    , m_state{}
+    : alpha_(0.0f)
+    , alpha_fixed_(0)
+    , state_{}
 {
-    vSetCoeffs(alpha);
+    SetCoeffs(alpha);
 }
 
 DCRemoval::~DCRemoval() = default;
 
-void DCRemoval::vProcessBlock(TrplBufferStr *pBuf)
+void DCRemoval::ProcessBlock(DSPBlock *dsp_block)
 {
-    for(int i = 0; i < pBuf->bufferSize; i++) {
-        float in = pBuf->pBufferRef[i];
-        float out = in - m_state.x[0] + m_alpha * m_state.y[0];
-        m_state.x[0] = in;
-        m_state.y[0] = out;
-        pBuf->pBufferRef[i] = out;
+    for(int i = 0; i < dsp_block->block_size; i++) {
+        float in = dsp_block->dsp_buffer[i];
+        float out = in - state_.x[0] + alpha_ * state_.y[0];
+        state_.x[0] = in;
+        state_.y[0] = out;
+        dsp_block->dsp_buffer[i] = out;
     }
 }
 
-void DCRemoval::vProcessBlockFix(TrplBufferStr *pBuf)
+void DCRemoval::ProcessBlockFixed(DSPBlock *dsp_block)
 {
-    for(int i = 0; i < pBuf->bufferSize; i++) {
-        s16 in = (s16)pBuf->pBufferRef[i];
-        s32 acc = (s32)in - (s32)m_state.x[0] + ((((s32)m_alpha_fixed) * ((s32)m_state.y[0])) >> Q2_14_SHIFT);
+    for(int i = 0; i < dsp_block->block_size; i++) {
+        s16 in = (s16)dsp_block->dsp_buffer[i];
+        s32 acc = (s32)in - (s32)state_.x[0] + ((((s32)alpha_fixed_) * ((s32)state_.y[0])) >> Q2_14_SHIFT);
         s16 out = CLIP_S16(acc);
-        m_state.x[0] = in;
-        m_state.y[0] = out;
-        pBuf->pBufferRef[i] = out;
+        state_.x[0] = in;
+        state_.y[0] = out;
+        dsp_block->dsp_buffer[i] = out;
     }
 }
 
-void DCRemoval::vSetCoeffs(float alpha)
+void DCRemoval::SetCoeffs(float alpha)
 {
-    m_alpha = alpha;
-    m_alpha_fixed = FLOAT_TO_Q2_14(alpha);
+    alpha_       = alpha;
+    alpha_fixed_ = FLOAT_TO_Q2_14(alpha);
 }

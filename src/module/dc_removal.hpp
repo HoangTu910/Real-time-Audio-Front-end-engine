@@ -20,14 +20,15 @@ public:
     DCRemoval(float alpha = 0.995f);
     ~DCRemoval();
 
-    void vProcessBlock(DspBlock *dsp_block) override;
-    void vProcessBlockFix(DspBlock *dsp_block) override;
-    void vSetCoeffs(float alpha);
+    void ProcessBlock(DSPBlock *dsp_block) override;
+    void ProcessBlockFixed(DSPBlock *dsp_block) override;
+
+    void SetCoeffs(float alpha);
 
 private:
-    float m_alpha;
-    s32 m_alpha_fixed;
-    DCRemovalState m_state;
+    float          alpha_;
+    s32            alpha_fixed_;
+    DCRemovalState state_;
 };
 
 #endif /* DC_REMOVAL_HPP */

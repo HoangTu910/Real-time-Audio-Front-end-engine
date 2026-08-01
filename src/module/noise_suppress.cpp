@@ -4,27 +4,27 @@
 #include <cmath>
 
 NoiseSuppress::NoiseSuppress()
-    : m_minStatState{}
+    : min_stat_state_{}
 {
-    memset(m_overlapIn, 0, sizeof(m_overlapIn));
-    memset(m_overlapOut, 0, sizeof(m_overlapOut));
-    memset(m_minStatState.pSmooth, 0, sizeof(m_minStatState.pSmooth));
+    memset(overlap_in_, 0, sizeof(overlap_in_));
+    memset(overlap_out_, 0, sizeof(overlap_out_));
+    memset(min_stat_state_.smooth, 0, sizeof(min_stat_state_.smooth));
 }
 
-void NoiseSuppress::vInitNoiseState(int frameSize)
+void NoiseSuppress::InitNoiseState(int frame_size)
 {
-    if (!m_minStatState.bInitialized || m_minStatState.lastFrameSize != frameSize) {
-        memset(m_minStatState.pSmooth, 0, sizeof(float) * frameSize);
-        m_minStatState.bInitialized = true;
-        m_minStatState.lastFrameSize = frameSize;
+    if (!min_stat_state_.is_initialized || min_stat_state_.last_frame_size != frame_size) {
+        memset(min_stat_state_.smooth, 0, sizeof(float) * frame_size);
+        min_stat_state_.is_initialized = true;
+        min_stat_state_.last_frame_size = frame_size;
     }
 }
 
-void NoiseSuppress::vProcessBlock(TrplBufferStr *pProcessBuf)
+void NoiseSuppress::ProcessBlock(DSPBlock *dsp_block)
 {
-    if (pProcessBuf == nullptr || pProcessBuf->pBufferRef == nullptr) return;
+    if (dsp_block == nullptr || dsp_block->dsp_buffer == nullptr) return;
 
-    const int hop = (int)pProcessBuf->bufferSize;  /* caller provides hop-sized buffer (N/2) */
+    const int hop = (int)dsp_block->block_size;  /* caller provides hop-sized buffer (N/2) */
     if (hop != MAX_FRAME_SIZE / 2) {
 #ifndef RELEASE_BUILD
         printf("Noise suppression: only hop=256 supported (N=512 FFT), got %d. Skipping.\n", hop);
@@ -33,19 +33,19 @@ void NoiseSuppress::vProcessBlock(TrplBufferStr *pProcessBuf)
     }
     const int N = hop * 2;  /* FFT size = 512 */
 
-    vInitNoiseState(N);
+    InitNoiseState(N);
 
     /* 1. Build N-sample frame with 50% overlap input:
      *    frame = [overlap_in (N/2) | new_input (N/2)] */
     float windowed[N];
     for (int i = 0; i < hop; i++) {
-        windowed[i] = m_overlapIn[i];                            /* first half: previous tail */
+        windowed[i] = overlap_in_[i];                            /* first half: previous tail */
     }
     for (int i = 0; i < hop; i++) {
-        windowed[hop + i] = (float)pProcessBuf->pBufferRef[i];   /* second half: new input */
+        windowed[hop + i] = (float)dsp_block->dsp_buffer[i];   /* second half: new input */
     }
     for (int i = 0; i < hop; i++) {
-        m_overlapIn[i] = (float)pProcessBuf->pBufferRef[i];      /* save input for next frame */
+        overlap_in_[i] = (float)dsp_block->dsp_buffer[i];      /* save input for next frame */
     }
 
     /* 2. Analysis Hann window to reduce spectral leakage */
@@ -66,17 +66,17 @@ void NoiseSuppress::vProcessBlock(TrplBufferStr *pProcessBuf)
         float power = Y[i].real * Y[i].real + Y[i].imag * Y[i].imag;
 
         /* smoothed power estimate */
-        m_minStatState.pSmooth[i] = 
-            ALPHA_SMOOTH * m_minStatState.pSmooth[i] + (1.0f - ALPHA_SMOOTH) * power;
+        min_stat_state_.smooth[i] = 
+            ALPHA_SMOOTH * min_stat_state_.smooth[i] + (1.0f - ALPHA_SMOOTH) * power;
 
         /* track minimum power */
-        Pyy[i] = m_minStatState.pSmooth[i];
+        Pyy[i] = min_stat_state_.smooth[i];
     }
 
-    memcpy(m_minStatState.minBuffer[m_minStatState.minBufIdx], Pyy, sizeof(float) * N);
-    m_minStatState.minBufIdx = (m_minStatState.minBufIdx + 1) % MINSTAT_WINDOW;
-    if (m_minStatState.minBufCount < MINSTAT_WINDOW)
-        m_minStatState.minBufCount++;
+    memcpy(min_stat_state_.min_buffer[min_stat_state_.min_buf_idx], Pyy, sizeof(float) * N);
+    min_stat_state_.min_buf_idx = (min_stat_state_.min_buf_idx + 1) % MINSTAT_WINDOW;
+    if (min_stat_state_.min_buf_cnt < MINSTAT_WINDOW)
+        min_stat_state_.min_buf_cnt++;
     
     /* noise magnitude estimate */
     float Pnoise[N];
@@ -101,11 +101,11 @@ void NoiseSuppress::vProcessBlock(TrplBufferStr *pProcessBuf)
          * 
          * Noise is STABLE, so that's why I give it 2 for all frames, but speech is VARYING, so it has different values across frames.
          */
-        float minVal = m_minStatState.minBuffer[0][i];
+        float minVal = min_stat_state_.min_buffer[0][i];
         /* find minimum value in the buffer */
-        for (int j = 1; j < m_minStatState.minBufCount; j++) {
-            if (m_minStatState.minBuffer[j][i] < minVal) {
-                minVal = m_minStatState.minBuffer[j][i];
+        for (int j = 1; j < min_stat_state_.min_buf_cnt; j++) {
+            if (min_stat_state_.min_buffer[j][i] < minVal) {
+                minVal = min_stat_state_.min_buffer[j][i];
             }
         }
         Pnoise[i] = minVal * BIAS_CORR;  /* bias compensation */
@@ -136,16 +136,16 @@ void NoiseSuppress::vProcessBlock(TrplBufferStr *pProcessBuf)
      * - Save last N/2 of iFFT output for next frame
      * - Output N/2 reconstructed samples */
     for (int i = 0; i < hop; i++) {
-        float ola_sample = S[i].real + m_overlapOut[i];
-        pProcessBuf->pBufferRef[i] = (sample_t)ola_sample;
+        float ola_sample = S[i].real + overlap_out_[i];
+        dsp_block->dsp_buffer[i] = (sample_t)ola_sample;
     }
     for (int i = 0; i < hop; i++) {
-        m_overlapOut[i] = S[hop + i].real;  /* save tail for next OLA */
+        overlap_out_[i] = S[hop + i].real;  /* save tail for next OLA */
     }
 }
 
-void NoiseSuppress::vProcessBlockFix(TrplBufferStr *pProcessBuf)
+void NoiseSuppress::ProcessBlockFixed(DSPBlock *dsp_block)
 {
     /* TODO: implement fixed-point spectral subtraction */
-    (void)pProcessBuf;
+    (void)dsp_block;  /* suppress unused variable warning */
 }

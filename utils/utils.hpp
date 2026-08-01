@@ -43,7 +43,7 @@ typedef struct {
     sample_t *dsp_buffer;
     u16       block_size;
     u16       num_channels;
-} DspBlock;
+} DSPBlock;
 
 typedef struct sincos_t
 {
