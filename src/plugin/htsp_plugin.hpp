@@ -1,5 +1,5 @@
-#ifndef RTAFE_MAIN_SP_HPP
-#define RTAFE_MAIN_SP_HPP
+#ifndef HTSP_PLUGIN_HPP
+#define HTSP_PLUGIN_HPP
 
 #include "idsp_module.hpp"
 #include "dsp_pipeline.hpp"
@@ -12,13 +12,14 @@
 
 typedef sample_t tSample;
 
-class RTAFE_DSPMain {
+class HTSPPlugin {
 public:
-    RTAFE_DSPMain()  = default;
-    ~RTAFE_DSPMain() = default;
+    HTSPPlugin()  = default;
+    ~HTSPPlugin() = default;
     
     /* main process function with full dsp pipeline*/
-    RtafeErrRet ProcessDSPBlock(sample_t *in_buf);
+
+    HtspErrRet ProcessDSPBlock(sample_t **in_buf, u16 num_channels);
 private:
     DCRemoval     dc_removal_module_{0.995f};
     PreEmphasis   pre_emphasis_module_{0.97f};
@@ -29,4 +30,4 @@ private:
                                &noise_suppress_module_};
 };
 
-#endif /* RTAFE_MAIN_SP_HPP */
+#endif /* HTSP_PLUGIN_HPP */

@@ -1,4 +1,4 @@
-#include "i_biquad_design.hpp"
+#include "ibiquad.hpp"
 
 class BiquadLPF : public IBiquad {
 public:

@@ -1,9 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
 ARCH="x86"
-TYPE="FIXED_POINT"
+TYPE="FLOATING_POINT"
+PIPELINE="SPEECH_1C"
 
 for arg in "$@"; do
     case "$arg" in
@@ -13,18 +14,20 @@ for arg in "$@"; do
         --type=*)
             TYPE="${arg#*=}"
             ;;
+        --pipeline=*)
+            PIPELINE="${arg#*=}"
+            ;;
         -h|--help)
-            echo "Usage: ./build.sh --arch=x86|arm --type=FIXED_POINT|FLOATING_POINT"
-            echo ""
-            echo "Builds test_rtafe (WAV processing + triple buffer test)"
-            echo ""
-            echo "Options:"
-            echo "  --arch=x86|arm           Target architecture (default: x86)"
-            echo "  --type=FIXED_POINT|FLOATING_POINT  Sample type (default: FIXED_POINT)"
-            echo ""
-            echo "Run modes:"
-            echo "  ./bin/test_rtafe                    Triple buffer test"
-            echo "  ./bin/test_rtafe input.wav out.wav  WAV processing"
+            cat <<EOF
+Usage: ./build.sh [--arch=x86|arm] [--type=FIXED_POINT|FLOATING_POINT] [--pipeline=AUDIO_4C|SPEECH_1C]
+
+Builds the WAV processing plugin binary from src/test_plugin_main.cpp.
+
+Examples:
+  ./build.sh
+  ./build.sh --arch=x86 --type=FLOATING_POINT --pipeline=SPEECH_1C
+  ./build.sh --arch=arm --type=FIXED_POINT --pipeline=SPEECH_1C
+EOF
             exit 0
             ;;
         *)
@@ -34,30 +37,44 @@ for arg in "$@"; do
     esac
 done
 
-SRC_DIR="src"
-UTILS_DIR="utils"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SRC_DIR="$ROOT_DIR/src"
+WAV_DIR="$SRC_DIR/wav"
+PLUGIN_DIR="$SRC_DIR/plugin"
+PIPELINE_DIR="$SRC_DIR/pipeline"
+MODULE_DIR="$SRC_DIR/module"
+BUFFER_DIR="$SRC_DIR/buffer"
+INTERFACE_DIR="$SRC_DIR/interface"
+UTILS_DIR="$ROOT_DIR/utils"
+BUILD_DIR="$ROOT_DIR/bin"
+OBJ_DIR="$BUILD_DIR/obj"
 
-INC_DIRS="-I${SRC_DIR} -I${UTILS_DIR} -I${SRC_DIR}/biquad -I${SRC_DIR}/module -I${SRC_DIR}/buffer"
+mkdir -p "$BUILD_DIR" "$OBJ_DIR"
 
-CPP_SRCS="tests/test_rtafe.cpp \
-    ${SRC_DIR}/RTAFE_main_sp.cpp \
-    ${SRC_DIR}/RTAFE_main_ap.cpp \
-    ${SRC_DIR}/buffer/BufferMng.cpp \
-    ${SRC_DIR}/buffer/WavFileMgr.cpp \
-    ${SRC_DIR}/biquad/BiquadFilter.cpp \
-    ${SRC_DIR}/biquad/IBiquadDesign.cpp \
-    ${SRC_DIR}/module/noise_suppress.cpp \
-    ${SRC_DIR}/module/dc_removal.cpp \
-    ${SRC_DIR}/module/pre-emphasis.cpp \
-    ${SRC_DIR}/module/IDSPModule.cpp"
+CC="${CC:-gcc}"
+CXX="${CXX:-g++}"
 
-C_SRCS="${SRC_DIR}/module/fft.c"
+case "$ARCH" in
+    x86)
+        OUT="$BUILD_DIR/test_plugin_main"
+        TARGET_FLAGS=""
+        ;;
+    arm)
+        OUT="$BUILD_DIR/test_plugin_main_arm"
+        CC="${CC:-aarch64-linux-gnu-gcc}"
+        CXX="${CXX:-aarch64-linux-gnu-g++}"
+        TARGET_FLAGS="-march=armv8-a+simd -ffast-math -DARM_TARGET"
+        ;;
+    *)
+        echo "Unsupported arch: $ARCH"
+        exit 1
+        ;;
+esac
 
 case "$TYPE" in
     FIXED_POINT)
         TYPE_FLAGS="-DFIXED_POINT"
-        echo "WARNING: Fixed-point currently still on development, the output may be unusable. 
-        Use at your own risk or switch to floating-point (--type=FLOATING_POINT)."
+        echo "WARNING: Fixed-point build is experimental and may produce unstable output."
         ;;
     FLOATING_POINT)
         TYPE_FLAGS=""
@@ -68,44 +85,80 @@ case "$TYPE" in
         ;;
 esac
 
-mkdir -p bin
+case "$PIPELINE" in
+    AUDIO_4C)
+        PIPELINE_FLAGS="-DDSP_PIPELINE_AUDIO_FOUR_CHANNELS"
+        ;;
+    SPEECH_1C)
+        PIPELINE_FLAGS="-DDSP_PIPELINE_SPEECH_PRE_PROCESSING"
+        ;;
+    MUL_CH)
+        PIPELINE_FLAGS=""
+        ;;
+    *)
+        echo "Unsupported pipeline: $PIPELINE"
+        exit 1
+        ;;
+esac
 
-if [ "$ARCH" = "arm" ]; then
-    CXX="aarch64-linux-gnu-g++"
-    CC="aarch64-linux-gnu-gcc"
-    TARGET_FLAGS="-march=armv8-a+simd -ffast-math -DARM_TARGET"
-    OUT="bin/arm_test_rtafe"
-    LDFLAGS="-static -lm -lstdc++"
-elif [ "$ARCH" = "x86" ]; then
-    CXX="g++"
-    CC="gcc"
-    TARGET_FLAGS=""
-    OUT="bin/test_rtafe"
-    LDFLAGS="-lm -lstdc++"
-else
-    echo "Unsupported arch: $ARCH"
-    exit 1
+COMMON_FLAGS=(
+    -O2
+    -Wall
+    -Wextra
+    -I"$SRC_DIR"
+    -I"$WAV_DIR"
+    -I"$PLUGIN_DIR"
+    -I"$PIPELINE_DIR"
+    -I"$MODULE_DIR"
+    -I"$BUFFER_DIR"
+    -I"$INTERFACE_DIR"
+    -I"$UTILS_DIR"
+)
+
+if [ -n "$TYPE_FLAGS" ]; then
+    COMMON_FLAGS+=("$TYPE_FLAGS")
 fi
 
-echo "Building $OUT (arch=$ARCH, type=$TYPE)"
+if [ -n "$PIPELINE_FLAGS" ]; then
+    COMMON_FLAGS+=("$PIPELINE_FLAGS")
+fi
 
-# Compile C sources
-C_OBJS=""
-for src in $C_SRCS; do
-    obj="${src%.c}.o"
-    $CC -Wall -O2 $TYPE_FLAGS $TARGET_FLAGS $INC_DIRS -c "$src" -o "$obj"
-    C_OBJS="$C_OBJS $obj"
+if [ -n "$TARGET_FLAGS" ]; then
+    COMMON_FLAGS+=("$TARGET_FLAGS")
+fi
+
+C_SRCS=(
+    "$MODULE_DIR/fft.c"
+)
+
+CXX_SRCS=(
+    "$SRC_DIR/test_plugin_main.cpp"
+    "$PLUGIN_DIR/htsp_plugin.cpp"
+    "$PIPELINE_DIR/dsp_pipeline.cpp"
+    "$MODULE_DIR/dc_removal.cpp"
+    "$MODULE_DIR/pre_emphasis.cpp"
+    "$MODULE_DIR/noise_suppress.cpp"
+    "$INTERFACE_DIR/idsp_module.cpp"
+    "$BUFFER_DIR/buffer_manager.cpp"
+    "$BUFFER_DIR/dsp_block.cpp"
+    "$WAV_DIR/wav_file_mgr.cpp"
+)
+
+rm -f "$OUT"
+rm -f "$OBJ_DIR"/*.o
+
+echo "Building $OUT (arch=$ARCH, type=$TYPE, pipeline=$PIPELINE)"
+
+for src in "${C_SRCS[@]}"; do
+    obj="$OBJ_DIR/$(basename "${src%.*}").o"
+    "$CC" -std=c99 "${COMMON_FLAGS[@]}" -c "$src" -o "$obj"
 done
 
-# Compile C++ sources
-CXX_OBJS=""
-for src in $CPP_SRCS; do
-    obj="${src%.cpp}.o"
-    $CXX -Wall -O2 -std=c++14 $TYPE_FLAGS $TARGET_FLAGS $INC_DIRS -c "$src" -o "$obj"
-    CXX_OBJS="$CXX_OBJS $obj"
+for src in "${CXX_SRCS[@]}"; do
+    obj="$OBJ_DIR/$(basename "${src%.*}").o"
+    "$CXX" -std=c++17 "${COMMON_FLAGS[@]}" -c "$src" -o "$obj"
 done
 
-# Link
-$CXX $CXX_OBJS $C_OBJS -o "$OUT" $LDFLAGS
+"$CXX" "$OBJ_DIR"/*.o -o "$OUT" -lm -lstdc++
 
 echo "Done: $OUT"

@@ -14,9 +14,9 @@ public:
                 IDSPModule *noise_suppress);
 
     ~DSPPipeline();
-
-    RtafeErrRet Process(sample_t *in_buf);
-    RtafeErrRet ProcessFixed(sample_t *in_buf);
+    
+    HtspErrRet Process(sample_t **in_buf, u16 num_channels);
+    HtspErrRet ProcessFixed(sample_t **in_buf, u16 num_channels);
 
 private:
     BufferManager  buffer_manager_;

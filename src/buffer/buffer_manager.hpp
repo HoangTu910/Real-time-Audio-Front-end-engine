@@ -3,7 +3,7 @@
 
 #include "utils.hpp"
 
-#define BLOCK_SIZE 512
+#define BLOCK_SIZE 256
 #define NUM_BLOCKS 128
 
 typedef struct FreeBuffer {

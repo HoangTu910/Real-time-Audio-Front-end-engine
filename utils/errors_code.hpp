@@ -1,7 +1,7 @@
-#ifndef RTAFE_ERRORS_CODE_HPP
-#define RTAFE_ERRORS_CODE_HPP
+#ifndef HTSP_ERRORS_CODE_HPP
+#define HTSP_ERRORS_CODE_HPP
 
-typedef enum RtafeErrRet {
+typedef enum HtspErrRet {
     kOk = 0,
     kErrorInvalidParam,
     kErrorFileIO,
@@ -9,7 +9,8 @@ typedef enum RtafeErrRet {
     kErrorMemoryAllocation,
     kErrorProcessing,
     kErrorInitAudioInputFailed,
-    kErrorInitAudioOutputFailed
-} RtafeErrRet;
+    kErrorInitAudioOutputFailed,
+    kErrorInvalidChannelCount
+} HtspErrRet;
 
-#endif /* RTAFE_ERRORS_CODE_HPP */   
+#endif /* HTSP_ERRORS_CODE_HPP */   
