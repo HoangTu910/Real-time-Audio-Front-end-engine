@@ -57,12 +57,16 @@ CXX="${CXX:-g++}"
 case "$ARCH" in
     x86)
         OUT="$BUILD_DIR/test_plugin_main"
-        TARGET_FLAGS=""
+        # Prefer the native assembler when PATH contains a cross-toolchain.
+        unset AS
+        unset LD
+        TARGET_FLAGS="-B/usr/bin"
         ;;
     arm)
         OUT="$BUILD_DIR/test_plugin_main_arm"
         CC="${CC:-aarch64-linux-gnu-gcc}"
         CXX="${CXX:-aarch64-linux-gnu-g++}"
+        unset AS
         TARGET_FLAGS="-march=armv8-a+simd -ffast-math -DARM_TARGET"
         ;;
     *)
@@ -159,6 +163,6 @@ for src in "${CXX_SRCS[@]}"; do
     "$CXX" -std=c++17 "${COMMON_FLAGS[@]}" -c "$src" -o "$obj"
 done
 
-"$CXX" "$OBJ_DIR"/*.o -o "$OUT" -lm -lstdc++
+"$CXX" "${TARGET_FLAGS}" "$OBJ_DIR"/*.o -o "$OUT" -lm -lstdc++
 
 echo "Done: $OUT"

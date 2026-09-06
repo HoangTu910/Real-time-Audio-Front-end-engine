@@ -9,21 +9,19 @@
 
 class DSPPipeline {
 public:
-    DSPPipeline(IDSPModule *dc_removal,
-                IDSPModule *pre_emphasis,
-                IDSPModule *noise_suppress);
-
+    DSPPipeline();
     ~DSPPipeline();
     
-    HtspErrRet Process(sample_t **in_buf, u16 num_channels);
-    HtspErrRet ProcessFixed(sample_t **in_buf, u16 num_channels);
+    HtspErrRet ConfigDSPPipeline(IDSPModule **list_of_modules,
+                                 u16 num_modules,
+                                 ChannelId channel_id);
+    HtspErrRet ProcessDSPPipeline(DSPBlock *dsp_block);
+    HtspErrRet ProcessDSPPipelineFixed(DSPBlock *dsp_block);
 
 private:
-    BufferManager  buffer_manager_;
-
-    IDSPModule*    dc_removal_module_;
-    IDSPModule*    pre_emphasis_module_;
-    IDSPModule*    noise_suppress_module_;
+    IDSPModule**  processing_chain_; /* array of pointers to DSP modules */
+    u16           num_modules_;       /* number of modules in the processing chain */
+    ChannelId     channel_id_;        /* channel ID for this pipeline */
 };
 
 #endif /* DSP_PIPELINE_HPP */

@@ -4,46 +4,58 @@
 
 #include <cstdio>
 
-static void processWavFile(const char *inputFile, const char *outputFile)
+static bool processWavFile(const char *inputFile, const char *outputFile)
 {
-    /* should we integrate the frame size (block size) getter from htsp_plugin instead of hardcoding it? */
-    const u16 frameSize = 512;
+    const u16 frameSize = BLOCK_SIZE;
 
     WavFileMgr wav;
     if (!wav.bOpenRead(inputFile, frameSize)) {
         std::printf("Failed to open input WAV file\n");
-        return;
+        return false;
     }
 
     const u16 numChannels = wav.uGetChannels();
-    if (numChannels == 0 || numChannels > WavFileMgr::MAX_CHANNELS) {
-        std::printf("Unsupported channel count: %u\n", numChannels);
+    if (numChannels != 2 && numChannels != 4) {
+        std::printf("Unsupported channel count: %u; plugin requires 2 or 4\n",
+                    numChannels);
         wav.vCloseRead();
-        return;
+        return false;
     }
 
     if (!wav.bOpenWrite(outputFile)) {
         std::printf("Failed to open output WAV file\n");
         wav.vCloseRead();
-        return;
+        return false;
     }
 
     HTSPPlugin htsp_plugin;
+    HtspErrRet ret = htsp_plugin.SetParams();
+    if (ret != kOk) {
+        std::printf("DSP parameter configuration error: %d\n", ret);
+        wav.vCloseWrite();
+        wav.vCloseRead();
+        return false;
+    }
+
     while (wav.bHasNextFrame()) {
         sample_t **channels = wav.ppReadFrame();
         if (!channels) {
-            break;
+            std::printf("Failed to read WAV frame\n");
+            wav.vCloseWrite();
+            wav.vCloseRead();
+            return false;
         }
 
-        if(frameSize != REQUIRED_BLOCK_SIZE) {
-            std::printf("Frame size mismatch: expected %u, got %u\n", REQUIRED_BLOCK_SIZE, frameSize);
-            break;
-        }
-        /* still need to clarify again, only specific channel as input is allowed */
-        HtspErrRet ret = htsp_plugin.ProcessDSPBlock(channels, numChannels);
+        #ifdef FIXED_POINT
+        ret = htsp_plugin.ProcessFixed(channels, numChannels);
+        #else
+        ret = htsp_plugin.Process(channels, numChannels);
+        #endif
         if (ret != kOk) {
             std::printf("DSP processing error: %d\n", ret);
-            break;
+            wav.vCloseWrite();
+            wav.vCloseRead();
+            return false;
         }
 
         wav.vWriteFrame(channels, frameSize);
@@ -51,6 +63,7 @@ static void processWavFile(const char *inputFile, const char *outputFile)
 
     wav.vCloseWrite();
     wav.vCloseRead();
+    return true;
 }
 
 int main(int argc, char *argv[])
@@ -60,6 +73,5 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    processWavFile(argv[1], argv[2]);
-    return 0;
+    return processWavFile(argv[1], argv[2]) ? 0 : 1;
 }

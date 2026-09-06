@@ -15,6 +15,18 @@ DCRemoval::DCRemoval(float alpha)
 
 DCRemoval::~DCRemoval() = default;
 
+HtspErrRet DCRemoval::SetParams(const DSPModuleParams *params, u16 param_count)
+{
+    if (params == nullptr) return kErrorNullModuleParam;
+
+    if (param_count != DC_MODULE_PARAMS_COUNT) {
+        return kErrorInvalidModuleParam;
+    }
+
+    SetCoeffs(*params);
+    return kOk;
+}
+
 void DCRemoval::ProcessBlock(DSPBlock *dsp_block)
 {
     sample_t *in_buf = dsp_block->GetDSPBuffer();

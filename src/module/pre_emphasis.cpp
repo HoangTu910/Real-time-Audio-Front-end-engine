@@ -14,6 +14,17 @@ void PreEmphasis::SetCoeffs(float pre_emphasis_factor)
     alpha_fixed_ = FLOAT_TO_Q2_14(pre_emphasis_factor);
 }
 
+HtspErrRet PreEmphasis::SetParams(const DSPModuleParams *params, u16 param_count)
+{
+    if (params == nullptr) return kErrorNullModuleParam;
+
+    if (param_count != PRE_EMPHASIS_MODULE_PARAMS_COUNT) {
+        return kErrorInvalidModuleParam;
+    }
+    SetCoeffs(*params);
+    return kOk;
+}
+
 void PreEmphasis::ProcessBlock(DSPBlock *dsp_block)
 {
     /* using the pre-emphasis filter 1 - 0.68z^-1 [Bäckström et al., 2017]. */

@@ -3,14 +3,16 @@
 
 typedef enum HtspErrRet {
     kOk = 0,
-    kErrorInvalidParam,
+    kErrorInvalidModuleParam,
+    kErrorNullModuleParam,
+    kErrorNullListOfModules,
     kErrorFileIO,
     kErrorUnsupportedFormat,
     kErrorMemoryAllocation,
     kErrorProcessing,
     kErrorInitAudioInputFailed,
     kErrorInitAudioOutputFailed,
-    kErrorInvalidChannelCount
+    kErrorInvalidChannelCount,
 } HtspErrRet;
 
 #endif /* HTSP_ERRORS_CODE_HPP */   

@@ -35,6 +35,10 @@ typedef float    tFloat;
 
 #define SIZE_OF_DSP_SAMPLE sizeof(sample_t)
 
+#define DC_MODULE_PARAMS_COUNT 1
+#define PRE_EMPHASIS_MODULE_PARAMS_COUNT 1
+#define NOISE_SUPPRESS_MODULE_PARAMS_COUNT 1
+
 #ifdef FIXED_POINT
 typedef tFixed sample_t;
 #else

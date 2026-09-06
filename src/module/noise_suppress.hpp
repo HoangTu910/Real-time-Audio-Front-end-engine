@@ -53,6 +53,7 @@
 
 #include "idsp_module.hpp"
 #include "utils.hpp"
+#include "errors_code.hpp"
 #include "fft.h"
 
 /**
@@ -89,6 +90,8 @@ public:
     NoiseSuppress();
     ~NoiseSuppress() override = default;
 
+    HtspErrRet SetParams(const DSPModuleParams *params,
+                         u16 param_count) override;
     void ProcessBlock(DSPBlock *dsp_block) override;
     void ProcessBlockFixed(DSPBlock *dsp_block) override;
 

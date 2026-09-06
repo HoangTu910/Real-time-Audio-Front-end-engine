@@ -20,6 +20,13 @@ void NoiseSuppress::InitNoiseState(int frame_size)
     }
 }
 
+HtspErrRet NoiseSuppress::SetParams(const DSPModuleParams *params, u16 param_count)
+{
+    if (params != nullptr || param_count != 0) return kErrorInvalidModuleParam;
+
+    return kOk;  /* no parameters for now */
+}
+
 void NoiseSuppress::ProcessBlock(DSPBlock *dsp_block)
 {
     sample_t *in_buf = dsp_block->GetDSPBuffer();
